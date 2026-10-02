@@ -1,0 +1,75 @@
+{
+  "task": {
+    "id": "71e629e8-c977-4104-980b-cc84bff141ae",
+    "state": "SUCCEEDED",
+    "attempts": 1,
+    "errorCode": null,
+    "artifactSize": 1663105,
+    "artifactSha256": "ab476723bdb302edf544ed8ad239185f1146b2b05ef9ab575d33537414b46155",
+    "metadataJson": "{\"output\":{\"durationSeconds\":15.146333,\"hasAudio\":true,\"videoCodec\":\"h264\",\"height\":1280,\"width\":720},\"burnCaptions\":true,\"inputs\":[{\"durationSeconds\":5.041667,\"source\":{\"durationSeconds\":5.041667,\"hasAudio\":false,\"videoCodec\":\"h264\",\"height\":1280,\"width\":720},\"versionId\":\"35df4463-f7c5-4e13-8f03-3912af70bf9e\"},{\"durationSeconds\":5.041667,\"source\":{\"durationSeconds\":5.041667,\"hasAudio\":false,\"videoCodec\":\"h264\",\"height\":1280,\"width\":720},\"versionId\":\"36eca555-a536-4e23-8434-ccd02f6ac9be\"},{\"durationSeconds\":5.041667,\"source\":{\"durationSeconds\":5.041667,\"hasAudio\":false,\"videoCodec\":\"h264\",\"height\":1280,\"width\":720},\"versionId\":\"650941df-69a5-47af-8836-be141c891b0e\"}],\"renderer\":\"ffmpeg-h264-aac-v1\",\"audioPolicy\":\"preserve available source audio; pad missing audio with silence\"}",
+    "createdAt": 1790950272225,
+    "updatedAt": 1790950275186
+  },
+  "input": {
+    "revision": 2,
+    "selectionVersion": 1,
+    "width": 720,
+    "height": 1280,
+    "burnCaptions": true,
+    "clips": [
+      {
+        "versionId": "35df4463-f7c5-4e13-8f03-3912af70bf9e",
+        "shotId": "f1a9f576-3986-4921-8dbf-1b05c3d599bd",
+        "taskId": "52ed4cb5-946e-4cfc-ab71-12055733367c",
+        "title": "整体外观",
+        "caption": "便携水杯",
+        "narration": "便携水杯，简洁外观。",
+        "artifactKey": "generated/2/52ed4cb5-946e-4cfc-ab71-12055733367c/video.mp4",
+        "artifactSize": 1809520,
+        "artifactSha256": "c201c7c00ae934f58ae83bef7a330082b2bf1d87843d0d87d6f2d2078b99aa2b"
+      },
+      {
+        "versionId": "36eca555-a536-4e23-8434-ccd02f6ac9be",
+        "shotId": "92bddd10-3bac-4f10-bdff-f38991f0e0d3",
+        "taskId": "cfe8cc49-877f-4f7b-a7ec-b4a6c803fca2",
+        "title": "拿取放入",
+        "caption": "轻松拿取 方便携带",
+        "narration": "轻松拿取，方便携带。",
+        "artifactKey": "generated/2/cfe8cc49-877f-4f7b-a7ec-b4a6c803fca2/video.mp4",
+        "artifactSize": 2904912,
+        "artifactSha256": "6fd28f4a5d7c09c80e9b312b248553b04d4bca47ca2788d26a9795be3855e150"
+      },
+      {
+        "versionId": "650941df-69a5-47af-8836-be141c891b0e",
+        "shotId": "e51e7b68-e0bb-4235-849d-173fd34f59be",
+        "taskId": "88a00086-1549-40af-aaf9-02b6b702b299",
+        "title": "桌面静置",
+        "caption": "简洁便携 日常好用",
+        "narration": "简洁便携，适合日常使用。",
+        "artifactKey": "generated/2/88a00086-1549-40af-aaf9-02b6b702b299/video.mp4",
+        "artifactSize": 1903290,
+        "artifactSha256": "3fd699f27a25e1b3a00190d10ef48040eacbdd65ea9c1790d3237a5e46f58a34"
+      }
+    ]
+  },
+  "events": [
+    {
+      "state": "QUEUED",
+      "errorCode": null,
+      "attempts": 0,
+      "occurredAt": 1790950272225
+    },
+    {
+      "state": "RENDERING",
+      "errorCode": null,
+      "attempts": 1,
+      "occurredAt": 1790950272565
+    },
+    {
+      "state": "SUCCEEDED",
+      "errorCode": null,
+      "attempts": 1,
+      "occurredAt": 1790950275186
+    }
+  ]
+}

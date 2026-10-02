@@ -1,0 +1,114 @@
+{
+  "originalPrompt": "便携水杯静置于桌面，杯身反射柔和自然光，背景有绿植虚影，简洁生活化场景，自然光均匀，镜头缓慢拉远，画面平稳收束，9:16竖画幅",
+  "input": {
+    "kind": "IMAGE_TO_VIDEO",
+    "prompt": "便携水杯静置于桌面，杯身反射柔和自然光，背景有绿植虚影，简洁生活化场景，自然光均匀，镜头缓慢拉远，画面平稳收束，9:16竖画幅",
+    "negativePrompt": null,
+    "imageSize": "720x1280",
+    "image": null,
+    "seed": null,
+    "referenceImageId": "520081b9-170d-4146-9ade-f4e73f3cce5f"
+  },
+  "effectiveSubmission": {
+    "parameters": {
+      "model": "doubao-seedance-2-0-mini-260615",
+      "content": [
+        {
+          "text": "便携水杯静置于桌面，杯身反射柔和自然光，背景有绿植虚影，简洁生活化场景，自然光均匀，镜头缓慢拉远，画面平稳收束，9:16竖画幅",
+          "type": "text"
+        },
+        {
+          "role": "first_frame",
+          "image_url": {
+            "url": "[private-reference]"
+          },
+          "type": "image_url"
+        }
+      ],
+      "duration": 5,
+      "resolution": "720p",
+      "ratio": "9:16",
+      "generate_audio": false,
+      "watermark": true
+    },
+    "imageReference": {
+      "id": "520081b9-170d-4146-9ade-f4e73f3cce5f",
+      "objectKey": "generation-inputs/2/1a5922dfc7d023b17206cbc92a59715f8efc3e314128c4ddb1406447d3947988.png",
+      "mime": "image/png",
+      "size": 188401,
+      "sha256": "1a5922dfc7d023b17206cbc92a59715f8efc3e314128c4ddb1406447d3947988",
+      "width": 720,
+      "height": 1280,
+      "createdAt": 1790936894172
+    },
+    "redactedFields": [
+      "image",
+      "content.image_url.url"
+    ]
+  },
+  "events": [
+    {
+      "id": 65,
+      "state": "QUEUED",
+      "errorCode": null,
+      "attempts": 0,
+      "occurredAt": 1790950050124
+    },
+    {
+      "id": 68,
+      "state": "SUBMITTING",
+      "errorCode": null,
+      "attempts": 0,
+      "occurredAt": 1790950052886
+    },
+    {
+      "id": 69,
+      "state": "RUNNING",
+      "errorCode": null,
+      "attempts": 0,
+      "occurredAt": 1790950053687
+    },
+    {
+      "id": 78,
+      "state": "SAVING",
+      "errorCode": null,
+      "attempts": 0,
+      "occurredAt": 1790950175529
+    },
+    {
+      "id": 79,
+      "state": "RUNNING",
+      "errorCode": "ARTIFACT_SAVE_FAILED",
+      "attempts": 1,
+      "occurredAt": 1790950177564
+    },
+    {
+      "id": 82,
+      "state": "SAVING",
+      "errorCode": null,
+      "attempts": 1,
+      "occurredAt": 1790950181798
+    },
+    {
+      "id": 83,
+      "state": "RUNNING",
+      "errorCode": "ARTIFACT_SAVE_FAILED",
+      "attempts": 2,
+      "occurredAt": 1790950183833
+    },
+    {
+      "id": 88,
+      "state": "SAVING",
+      "errorCode": null,
+      "attempts": 2,
+      "occurredAt": 1790950192205
+    },
+    {
+      "id": 89,
+      "state": "SUCCEEDED",
+      "errorCode": null,
+      "attempts": 0,
+      "occurredAt": 1790950200679
+    }
+  ]
+}

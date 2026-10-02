@@ -1,0 +1,34 @@
+{
+  "plannedReservationPerTaskCny": 2.5,
+  "pricingSource": "https://siliconflow.cn/pricing",
+  "budgetCny": 10,
+  "textTasks": 1,
+  "pending": [
+    "SiliconFlow API key",
+    "Account model availability and exact video output host preflight"
+  ],
+  "recordedAtUtc": "2026-10-02T10:14:07.1101767Z",
+  "paidRequests": 0,
+  "credentialConfigured": false,
+  "maxTasks": 4,
+  "imageTasks": 3,
+  "models": {
+    "text": "Wan-AI/Wan2.2-T2V-A14B",
+    "image": "Wan-AI/Wan2.2-I2V-A14B"
+  },
+  "authorizationEvidence": "User explicitly authorized at most 4 video requests with a total budget of 10 CNY",
+  "authorized": true,
+  "publishedPriceCnyPerModel": 2,
+  "result": "WAITING_FOR_CREDENTIAL",
+  "paidGateEnabled": false,
+  "steps": [
+    "Verify API credential and account model availability without submitting video",
+    "Resolve and configure exact trusted video artifact hosts; do not disable the existing download checks",
+    "Submit one text-to-video task using the first saved DeepSeek shot prompt",
+    "Archive the output, extract a reference frame locally, and upload it as a private input asset",
+    "Attach the reference to three saved storyboard shots, confirm the revised snapshot, then submit three image-to-video tasks",
+    "Archive all outputs, compose three selected clips, verify signed/downloaded artifact integrity and record metadata"
+  ],
+  "note": "Existing DeepSeek authorization is independent. No need to repeat this video budget approval when a valid key is configured; do not exceed it.",
+  "provider": "siliconflow"
+}

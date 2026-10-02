@@ -1,0 +1,66 @@
+{
+  "originalPrompt": "一只浅灰绿色便携水杯，黑色杯盖，杯身圆润简洁，静置于浅色桌面。背景为宽大窗户和简洁室内空间，柔和自然光，镜头缓慢推进，真实产品摄影风格，9:16竖画幅，不出现人物。",
+  "input": {
+    "kind": "TEXT_TO_VIDEO",
+    "prompt": "一只浅灰绿色便携水杯，黑色杯盖，杯身圆润简洁，静置于浅色桌面。背景为宽大窗户和简洁室内空间，柔和自然光，镜头缓慢推进，真实产品摄影风格，9:16竖画幅，不出现人物。",
+    "negativePrompt": null,
+    "imageSize": "720x1280",
+    "image": null,
+    "seed": 42,
+    "referenceImageId": null
+  },
+  "effectiveSubmission": {
+    "parameters": {
+      "model": "doubao-seedance-2-0-mini-260615",
+      "content": [
+        {
+          "text": "一只浅灰绿色便携水杯，黑色杯盖，杯身圆润简洁，静置于浅色桌面。背景为宽大窗户和简洁室内空间，柔和自然光，镜头缓慢推进，真实产品摄影风格，9:16竖画幅，不出现人物。",
+          "type": "text"
+        }
+      ],
+      "duration": 5,
+      "resolution": "720p",
+      "ratio": "9:16",
+      "generate_audio": false,
+      "watermark": true,
+      "seed": 42
+    }
+  },
+  "events": [
+    {
+      "id": 94,
+      "state": "QUEUED",
+      "errorCode": null,
+      "attempts": 0,
+      "occurredAt": 1790950496213
+    },
+    {
+      "id": 95,
+      "state": "SUBMITTING",
+      "errorCode": null,
+      "attempts": 0,
+      "occurredAt": 1790950511028
+    },
+    {
+      "id": 96,
+      "state": "RUNNING",
+      "errorCode": null,
+      "attempts": 0,
+      "occurredAt": 1790950512053
+    },
+    {
+      "id": 97,
+      "state": "SAVING",
+      "errorCode": null,
+      "attempts": 0,
+      "occurredAt": 1790950600365
+    },
+    {
+      "id": 98,
+      "state": "SUCCEEDED",
+      "errorCode": null,
+      "attempts": 0,
+      "occurredAt": 1790950603250
+    }
+  ]
+}

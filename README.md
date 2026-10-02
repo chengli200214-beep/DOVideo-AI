@@ -18,6 +18,8 @@
 
 面向长视频内容理解的 <strong>Video Agent</strong>。
 
+本仓库基于 [Xiaoc7r/DOVideo-AI](https://github.com/Xiaoc7r/DOVideo-AI) 二次开发，保留原项目与 MIT 许可证，新增 <strong>AIGC 视频创作与任务编排平台</strong>：DeepSeek 脚本与分镜、文生／图生视频、镜头生成版本、局部重生成、FFmpeg 成片及质量／成本评测。完整功能、独立启动和验收见 [创作平台说明](docs/creator-platform.md)。
+
 致力于将长视频转化为可检索、可追溯、可继续追问的结构化知识。
 
 <div align="center">
@@ -29,7 +31,17 @@
 
 </div>
 
-## 项目预览
+## AIGC 创作平台与真实验收
+
+新增链路：创作需求 → 脚本与分镜确认 → 异步视频生成 → 私有产物归档 → 镜头版本选择 → 带字幕成片。支持 Mock、SiliconFlow 和 Seedance 视频适配器，默认启动关闭付费调用；密钥和本地数据库不随仓库发布。
+
+Seedance Mini 已验证 1 次真实文生视频、3 次真实图生视频，以及 15.146 秒带字幕成片。后端 117 项测试通过；账单核对、正式人工评分和历史 SiliconFlow 未知提交核实按用户要求移出本次验收范围，原始状态保留。
+
+![AIGC 视频创作工作台](docs/acceptance/seedance-real-workbench.jpg)
+
+[启动与演示说明](docs/creator-platform.md) · [Seedance 接入说明](docs/seedance-video.md) · [真实成片 MP4](docs/acceptance/seedance-film.mp4) · [脱敏验收记录](docs/acceptance/seedance-real.json)
+
+## 原项目预览
 
 **登录与注册**
 
@@ -155,6 +167,16 @@ sequenceDiagram
 | 部署 | Docker Compose | 本地中间件编排 |
 
 ## 本地运行
+
+新增文生视频／图生视频任务接口与 Vue 生成入口，普通启动器默认使用本地 mock。已支持模型能力配置、私有参考图片、任务追溯、幂等恢复和 MinIO 归档；接口见 [视频生成接入说明](docs/video-generation.md)，分镜、镜头版本与成片功能见 [创作平台说明](docs/creator-platform.md)。[Seedance Mini](docs/seedance-video.md) 已完成 1 次真实文生、3 次真实图生及带字幕多镜头成片验收；117 项后端回归通过。实际费用与人工评分保留待核对状态。
+
+已新增「脚本与分镜」入口（`/?storyboard`）：产品需求创建本地模板草稿，支持镜头编辑、历史修订和人工确认，确认不会启动视频生成。接口、限制和验收见 [脚本与分镜说明](docs/storyboards.md)。
+
+确认分镜后可在「镜头生成」区域配置项目额度、批量提交、查看归档视频或局部重生成；生成版本绑定不可变分镜，查询与保存恢复沿用原模型任务。默认 Mock、零付费调用，详见 [镜头生成与预算台账](docs/shot-generation.md)。
+
+已接入已完成镜头的版本选择、独立 FFmpeg 合成、中文字幕、原声／静音归一、私有成片预览与下载、固定提示词对比样例、人工评分和 JSON / CSV 评测导出。独立应用启动：`scripts/start-aigc.ps1 -JdkHome <JDK21+目录>`，默认地址 `http://127.0.0.1:9095/?storyboard`，付费调用保持关闭。
+
+Windows 可运行 [真实中间件验收脚本](scripts/test-generation-infrastructure.ps1)，自动创建临时 MySQL／Redis／MinIO 并验证生成闭环及应用重启。MinIO 镜像由 `infrastructure/minio/Dockerfile` 从官方固定版本源码构建，首次启动会进行编译。
 
 ### 环境要求
 

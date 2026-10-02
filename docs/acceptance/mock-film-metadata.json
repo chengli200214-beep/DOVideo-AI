@@ -1,0 +1,43 @@
+{
+  "renderer" : "ffmpeg-h264-aac-v1",
+  "audioPolicy" : "preserve available source audio; pad missing audio with silence",
+  "output" : {
+    "width" : 720,
+    "durationSeconds" : 3.021333,
+    "hasAudio" : true,
+    "videoCodec" : "h264",
+    "height" : 1280
+  },
+  "burnCaptions" : true,
+  "inputs" : [ {
+    "durationSeconds" : 1.0,
+    "source" : {
+      "width" : 320,
+      "durationSeconds" : 1.0,
+      "hasAudio" : false,
+      "videoCodec" : "mpeg4",
+      "height" : 180
+    },
+    "versionId" : "0fa675bb-6324-4788-8f29-d5c98bc556f0"
+  }, {
+    "durationSeconds" : 1.0,
+    "source" : {
+      "width" : 320,
+      "durationSeconds" : 1.0,
+      "hasAudio" : false,
+      "videoCodec" : "mpeg4",
+      "height" : 180
+    },
+    "versionId" : "f24826fa-1c54-4a01-aa51-66a157aade76"
+  }, {
+    "durationSeconds" : 1.0,
+    "source" : {
+      "width" : 320,
+      "durationSeconds" : 1.0,
+      "hasAudio" : false,
+      "videoCodec" : "mpeg4",
+      "height" : 180
+    },
+    "versionId" : "20f4cf9e-9a6f-4aef-a418-975b728fcbec"
+  } ]
+}

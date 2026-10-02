@@ -1,0 +1,16 @@
+{
+  "id": "834e4197-363a-4d2e-816c-c64198a3e855",
+  "provider": "seedance",
+  "model": "doubao-seedance-2-0-mini-260615",
+  "state": "SUCCEEDED",
+  "remoteId": "cgt-20261002221512-7mzcc",
+  "artifactKey": "generated/2/834e4197-363a-4d2e-816c-c64198a3e855/video.mp4",
+  "artifactSize": 1681809,
+  "artifactSha256": "9d3d033083f3033dca1cdcf08c0c6bff0de6171981b2c9e2c6f1710364ccb4d1",
+  "errorCode": null,
+  "recoverable": false,
+  "attempts": 0,
+  "createdAt": 1790950496213,
+  "updatedAt": 1790950603250,
+  "recoveryAvailable": true
+}

@@ -1,0 +1,491 @@
+{
+  "recordedAtUtc": "2026-10-02T08:26:32.7081690Z",
+  "source": {
+    "baselineCommit": "df4fa83a78a51dfa1718606bf47cf49942e1112e",
+    "state": "working-tree",
+    "changedFileFingerprint": "c5d58e6a1809ff12cdf68900dfa44caca955c330ed7ad987e22c92a82251db6d",
+    "manifest": [
+      {
+        "path": ".env.example",
+        "sha256": "d9b62d30526c91f76d4f5f65d12f461dd22680f1a4d6d2f92b7619dd5cd200d4"
+      },
+      {
+        "path": ".gitignore",
+        "sha256": "13708fb18f46a13152d86d059912c736fa00928346bd14ce0c187d5261c25eec"
+      },
+      {
+        "path": "client/index.html",
+        "sha256": "d7b7da403b3f8157e474b5daa49e23d292229b226ff664b0de092d81d4171444"
+      },
+      {
+        "path": "client/public/favicon.svg",
+        "sha256": "50128577986b47f7c6d70dfcc9065757c9a176509b0e6ba47c80adf71477e9c1"
+      },
+      {
+        "path": "client/src/App.vue",
+        "sha256": "27420db0a2411f43d26060652f0f4137f851f849b6700fc9a2da67f8edb64dcc"
+      },
+      {
+        "path": "client/src/FilmWorkbench.vue",
+        "sha256": "445694aeabbfa3a6757fa7d0d3d643d27131f329b175a72e708d402c9628f899"
+      },
+      {
+        "path": "client/src/filmWorkspace.js",
+        "sha256": "15cd20655e862aaefac7d72717feb729bea55e9d99a8835e2086bd1c243d7e52"
+      },
+      {
+        "path": "client/src/filmWorkspace.test.js",
+        "sha256": "0cb2f927ee886ac215a60049ea3a8203099e016fbfc82ff4bded1de3071b38b3"
+      },
+      {
+        "path": "client/src/generationWorkspace.js",
+        "sha256": "d3820b131f85d678d65fd1fe375001b76f23452f7c4ffd674501e3241eddcc9c"
+      },
+      {
+        "path": "client/src/generationWorkspace.test.js",
+        "sha256": "ff36e114d2856d1e25fbbc31b2504a96515684f828e24e76d46506bd61d3d447"
+      },
+      {
+        "path": "client/src/GenerationWorkspace.vue",
+        "sha256": "20ab5288654d4fd0ec97b963317f27cdc2ff30a875188e7aac8e5aa2133c84c0"
+      },
+      {
+        "path": "client/src/main.js",
+        "sha256": "dea817e11cec1721e837fb642e9c26c20ab4a401bfc73388b89456bf294cff43"
+      },
+      {
+        "path": "client/src/ShotGenerationPanel.vue",
+        "sha256": "f5c03c04dd0915e73a607f4c29a285af4b635138bfa11aa885323cf074511980"
+      },
+      {
+        "path": "client/src/shotGenerationWorkspace.js",
+        "sha256": "4409a9af1328dac48ecee46f4796ab47d2defc44d39cb7979385e18ae167af00"
+      },
+      {
+        "path": "client/src/shotGenerationWorkspace.test.js",
+        "sha256": "7bc96cb1c18ae5ae3f9a2702eafc87bb0a4f63bdb9301abeca496faf82f013b8"
+      },
+      {
+        "path": "client/src/StoryboardModelPanel.vue",
+        "sha256": "054a462db98753a31df862a79dfc47d7c51bf875bc42c2a5c1eaf1a749b8b8cf"
+      },
+      {
+        "path": "client/src/storyboardModelWorkspace.js",
+        "sha256": "7ff442a658c1637e940856c0bfe5797d8cc9edc086025940eed7a3258b63eff9"
+      },
+      {
+        "path": "client/src/storyboardModelWorkspace.test.js",
+        "sha256": "a6370a513fa2608d1bb87751cf2b4e5c9ff530e496de5ddcc92486131abb8bb5"
+      },
+      {
+        "path": "client/src/storyboardWorkspace.js",
+        "sha256": "9467f59dd9a7a0075c93befba20d21ed6539abb2ba21228535f56fbe45dced3a"
+      },
+      {
+        "path": "client/src/storyboardWorkspace.test.js",
+        "sha256": "d459088fd8f061d49b56513893f503aaeb1e744c0b11eac0c84a51d0ae50202a"
+      },
+      {
+        "path": "client/src/StoryboardWorkspace.vue",
+        "sha256": "0721a42b05badd8c9a27bd9e4393c7ae67d0730641bf6eae3bab938bf3005614"
+      },
+      {
+        "path": "client/vite.config.js",
+        "sha256": "ec834414557e70fc43c595e8534b923491e35187fd5a334cd7d7265cab2bec4e"
+      },
+      {
+        "path": "docker-compose.aigc.yml",
+        "sha256": "8e41f099e4dccda0f36b1e3106de5f2e7f77e3391ede55cbfba201316143379c"
+      },
+      {
+        "path": "docker-compose.generation-it.yml",
+        "sha256": "ccedf07282e736bf15b1d72d73bf8fa1e8eeadee59107b4019051460bc353216"
+      },
+      {
+        "path": "docker-compose.yml",
+        "sha256": "22b65182bc4bb7890f96d99011feb628bd5c88a64837e1e9cdd5dd1daed6ab3d"
+      },
+      {
+        "path": "docs/aigc-roadmap.md",
+        "sha256": "74e724bf5c4c00d509b75567457edbb96b72dd37cf5a4057f2ac911256f8627b"
+      },
+      {
+        "path": "docs/creator-platform.md",
+        "sha256": "33f5d082331452267a2cf6724d3a9f0a3bf7ff5111ecbbcfbf5e808d25569470"
+      },
+      {
+        "path": "docs/deepseek-storyboards.md",
+        "sha256": "a17139a1abef3a59c1e18a2dd892f282dd1f755d9086a3b6a36583c08bb809dd"
+      },
+      {
+        "path": "docs/shot-generation.md",
+        "sha256": "56afb8f1eca3317b2820b1f817e7231efc49160a916eb9ed2752c2e02e0f7521"
+      },
+      {
+        "path": "docs/storyboards.md",
+        "sha256": "d7164d8c631ef8f29fe74375f2ac5a03ddee63fb3f00e44fbeb2e5554ea31145"
+      },
+      {
+        "path": "docs/video-generation.md",
+        "sha256": "3ec20ee52a14b3ae8c4ef694bb460c5ba9099dc27c060b9e39295d0d85cc7735"
+      },
+      {
+        "path": "infrastructure/minio/Dockerfile",
+        "sha256": "19a6cb0c50b04846c7ff0359b204e6837c5a0c3f9b33d1f4080730ffa5c7484b"
+      },
+      {
+        "path": "README.md",
+        "sha256": "6e297c6fcf7e053ba738e791f2d2789c4888353471c782d0f324454685de488b"
+      },
+      {
+        "path": "scripts/archive-generation-acceptance.ps1",
+        "sha256": "ca68f65df5b59b17a61500fecb69caf338bf75ec3d021e2a0d27e8ac57d41ee8"
+      },
+      {
+        "path": "scripts/install-ffmpeg.ps1",
+        "sha256": "9291c60c24b5e8cfacf086479f60b5c8de3f81be146173853a27d711967e1bc4"
+      },
+      {
+        "path": "scripts/start-aigc.ps1",
+        "sha256": "8ad5309d39c3f20075e8f30d2e18aee4d9bc00d5bdf3f03f148e3aa6316d57b3"
+      },
+      {
+        "path": "scripts/stop-aigc.ps1",
+        "sha256": "556fb24eae98cfd78b1fdf64007bd724de9d8fc4b2397c0ae5d83545938a670c"
+      },
+      {
+        "path": "scripts/test-generation-infrastructure.ps1",
+        "sha256": "68b5cb342ad66a2cd2d93b40f19d91a1fce2726e615c828283694f746b01c7a9"
+      },
+      {
+        "path": "server/pom.xml",
+        "sha256": "7817630eb31dcb988b9ed968b026d3d96fe41bf201ecce19e032e22657254d65"
+      },
+      {
+        "path": "server/src/main/java/com/example/aigc/AigcApplication.java",
+        "sha256": "b89cd9d6207521b8c2786e7e93bcf7c55c3a33ba537342e6ca7ec485f2193402"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/config/WebConfig.java",
+        "sha256": "1c045a0bb6ef7e59e79056ee6cab51f9a98b9d317816ef9dc502e80e7536a5da"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/controller/EvaluationController.java",
+        "sha256": "c75b738daa9dde2f84c1d42eea1b63dfb5dfec62dea04f368c0dbb6d2b7f1c9d"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/controller/FilmController.java",
+        "sha256": "1cab0b30ca703e1bbb747935c5973580e7a356d10ee75063ca079fbeafb2218e"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/controller/GenerationController.java",
+        "sha256": "529d633f22fee4557d211227cff276db40553d601840d32f6a6b3e7cbe581eae"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/controller/GenerationInputController.java",
+        "sha256": "997f84396b7bd97d489dee3586553c2d3758b69eb74607266c736bed9ad3fe4d"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/controller/ShotGenerationController.java",
+        "sha256": "b8bfd3af9b25d91d478412e1930b1cd298f1e688373eb3337d77295a0f6b0ccd"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/controller/StoryboardController.java",
+        "sha256": "3286c0c2a100c76a997af9eadcd8511245937b1371d7986bf5dc0227f631396e"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/controller/StoryboardModelController.java",
+        "sha256": "46934af7b9c45747b3fb4eb3a4e2a9e54a37dc63e5a58fb7860e8bb9335f8981"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/film/CompositionRenderer.java",
+        "sha256": "0e97c0c9e4783a0d7708c4af3e6a13f0317774ed11d65b0f9e1db9720a381ccd"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/film/CompositionRepository.java",
+        "sha256": "60093f0fa2ab526b1a620b6b85313888685b12f786e683e102c39021b8d3459a"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/film/CompositionWorker.java",
+        "sha256": "ce0d353106d1cb22b2e3590878925a6269c7af6ddcd206ae755652cac1d2b9b4"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/film/FfmpegCompositionRenderer.java",
+        "sha256": "d5f67e79eeb1bd73e88f7670f0abf3eac66a0806283fb1837806f91bd3a21902"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/film/FilmService.java",
+        "sha256": "409da86526108c48e81bbdb935efae305d28b0a6e108ca361ff7c8f4a530c672"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/film/FilmSpec.java",
+        "sha256": "00e883b4ed982ac881c2fe6db80fef145b730ffb87a0acc0365f8c795d3b5c7c"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/film/QualityEvaluationService.java",
+        "sha256": "4541658280d078388662917a7d8a80b6e63bd29fa44153de805120a32908aa2b"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/generation/GenerationArtifactStore.java",
+        "sha256": "89a1e7a72e8878bcfe1f9f34f5771ebdae8a394fc185a8908e673f3d11b8a607"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/generation/GenerationAssetService.java",
+        "sha256": "b423a1011e6bf65df7108b34448815a38f53d2f05ac91c4b14ec82052087038b"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/generation/GenerationProperties.java",
+        "sha256": "d2c345e4e4ea0548b436d6ec2e46eef2908de92f734af8f6eddee44eff7ee84a"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/generation/GenerationProvider.java",
+        "sha256": "34661e4e8ff0b482332f72b4facc88948c5410a2a3258ba582a4f0444f935782"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/generation/GenerationRepository.java",
+        "sha256": "012e45b8e902004dff603b0069039e673196d4f7f4f45860fbf16fff2b951dc2"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/generation/GenerationRequest.java",
+        "sha256": "ef72017b259ff96251135cb07c4a68c7e9d03916a4745c99904baa7f8857718c"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/generation/GenerationSchedulingConfig.java",
+        "sha256": "d053defcf810e7ac767a40fbbe523b950deaecbc0eeddfec65ca52b1d1b05ab1"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/generation/GenerationService.java",
+        "sha256": "5d6327bb2b16c87471f3ea6bbbe0c97eaee6e3f3e24c78a72a3d88e9c6450d40"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/generation/GenerationTask.java",
+        "sha256": "89f9a71a91919008d730ae6c313eb3984feed5cee37535985fedf771a6abc9b9"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/generation/GenerationWorker.java",
+        "sha256": "8eee45b8a7eb1fe09c3f8215e846ed8655058efc457c9ed3930c747dbf5e31d9"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/generation/MinioGenerationArtifactStore.java",
+        "sha256": "a324b97b9df81d0d2c4d3a97741b87318b0b60014f63934e234889d066914f86"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/generation/MockGenerationProvider.java",
+        "sha256": "5f0cf3482368bc1387744f22f48cb31b04639c8e826409b6c4a8553832411023"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/generation/SiliconFlowGenerationProvider.java",
+        "sha256": "e38b38a14ae7c7a872a01c21c915cfbc290aafa7746046a715aafb7acc993d27"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/storyboard/CreativeBrief.java",
+        "sha256": "0555ef346e8fba7e706658d487480ade930d9d9592e8feff6a140eff27169d23"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/storyboard/DeepSeekStoryboardPlanner.java",
+        "sha256": "aa1371dfebcd81a97e457bd14f090c218f79ddac7ebd8d930c2d88cd3c0d83a5"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/storyboard/ShotGenerationService.java",
+        "sha256": "cbd5b017ad36afe01df94c5136f9adb7252f8cee6af6dc87dbe33d4cfb310e90"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/storyboard/StoryboardDraft.java",
+        "sha256": "326b49386add984dd2f027ea5331d2af89b0a18df2b1553c4fb4984fff1728db"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/storyboard/StoryboardModelProperties.java",
+        "sha256": "02f1cca41a62a9c405fd66accb7d1703dbadfe4ce54fb652122998e059cf49e6"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/storyboard/StoryboardModelRepository.java",
+        "sha256": "c1ee8fe88470b2141bcc25e17be73f730868db523d097c8f84aa4a5e12635046"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/storyboard/StoryboardModelService.java",
+        "sha256": "3c76831007af475eb9cac438d0385e76132487d742115ddff060386debcdf63c"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/storyboard/StoryboardModelWorker.java",
+        "sha256": "fde06834eec962e887062d0ba3ca6283c8847145312191a45b8a7af5e2ac4d35"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/storyboard/StoryboardPlanner.java",
+        "sha256": "1395a3631759b11cdb3665c5c722c571305b71f5408d3d496d096a63f4712efa"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/storyboard/StoryboardRepository.java",
+        "sha256": "d25b60cc674cf8cd753b06fa56db033b34a63cc453a5b8503c4865ccd0be2f76"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/storyboard/StoryboardService.java",
+        "sha256": "396b118a9eda513295f522e9d521d2ff4a86b7e71f934e64352074c23bb3686c"
+      },
+      {
+        "path": "server/src/main/java/com/example/server/storyboard/TemplateStoryboardPlanner.java",
+        "sha256": "012aad2e5b6dcf00971ae6f27d24ec5f489f002d44659b6de6339123d1d990ad"
+      },
+      {
+        "path": "server/src/main/resources/application-aigc.properties",
+        "sha256": "a6ad8c68630b442306be2a2e2e9053bd1ff9ff7ac28649d102df8d3447bc6b05"
+      },
+      {
+        "path": "server/src/main/resources/application.properties",
+        "sha256": "8ae34d7bb69f957fed290fe7993243bbb60669114a6ae72e471c3193f10581a1"
+      },
+      {
+        "path": "server/src/main/resources/db/migration/V4__create_generation_tasks.sql",
+        "sha256": "22cbceb81feeb85089348459f134ed9510f15f23d13027e4a2ca0e33ba31a184"
+      },
+      {
+        "path": "server/src/main/resources/db/migration/V5__generation_inputs_and_trace.sql",
+        "sha256": "19130229733fbf2fcdebc2121b438fb2e7eb5b5a01d7e04015fea37702243e04"
+      },
+      {
+        "path": "server/src/main/resources/db/migration/V6__creative_storyboards.sql",
+        "sha256": "7990ed1b8f6cbbabd6336c52278e17db9f6ec38639b7e2294554457276b8905a"
+      },
+      {
+        "path": "server/src/main/resources/db/migration/V7__shot_generations.sql",
+        "sha256": "6849c114c4d81bf915132b8b9f33ed6ff2cf9799bc4344a41d3dad6fe99e5b3e"
+      },
+      {
+        "path": "server/src/main/resources/db/migration/V8__films_and_reviews.sql",
+        "sha256": "9f838a686cb750a8e3c156a6d692ad32d37f65cdef9f5b043664b8e7c3981f7d"
+      },
+      {
+        "path": "server/src/main/resources/db/migration/V9__deepseek_storyboard_planning.sql",
+        "sha256": "977ee9b3deb09aa0327ef89ddd5dd113fad4b97bf68e827c73b2846c766eecf5"
+      },
+      {
+        "path": "server/src/main/resources/generation/evaluation-cases.json",
+        "sha256": "16b709bce53b355ca43371e820d0660ec157882d3405150927113812a901922d"
+      },
+      {
+        "path": "server/src/main/resources/generation/sample.mp4",
+        "sha256": "eda72b1fd3069b1aec207f4bad4e748583462dc188f6818518c43c2f5bd07a8a"
+      },
+      {
+        "path": "server/src/test/java/com/example/server/film/FfmpegSafetyTest.java",
+        "sha256": "0e6b30938660b91db3d938c9d1ba68d39db7c5a4934756e2b296be7629babd97"
+      },
+      {
+        "path": "server/src/test/java/com/example/server/generation/FilmFlowTest.java",
+        "sha256": "2ae2a99f60fb42fc4023704aa52dfd1a0e4b01059684d77607e5be70491182f0"
+      },
+      {
+        "path": "server/src/test/java/com/example/server/generation/GenerationApiTest.java",
+        "sha256": "7f334262e0123f73e3311d35b7ce9bd8983b1ec99b4d9e3a8dbd38b05d617d3f"
+      },
+      {
+        "path": "server/src/test/java/com/example/server/generation/GenerationArtifactStoreTest.java",
+        "sha256": "7bd5555141de9ca02c4a729f92382d3cc7855733bb56ee58f215321b770ee8e0"
+      },
+      {
+        "path": "server/src/test/java/com/example/server/generation/GenerationFlowTest.java",
+        "sha256": "c744cade13ee658d6f2c5c32505609ddd449410f6cf55b6fcf67ee770886a1ef"
+      },
+      {
+        "path": "server/src/test/java/com/example/server/generation/GenerationInfrastructureIT.java",
+        "sha256": "c4bd20f98794196f7b9aa288f48d9ed4e009526d28cf36cbb53d35c6c85758e9"
+      },
+      {
+        "path": "server/src/test/java/com/example/server/generation/GenerationPreparationTest.java",
+        "sha256": "c9bb08977e7902347a12d2682e50a905cba7d43eb19b3e2b44d33ab3c71e7be5"
+      },
+      {
+        "path": "server/src/test/java/com/example/server/generation/QualityEvaluationTest.java",
+        "sha256": "7ef70672f89493e558f6428c3716113dc122b63cfd19972e86cafa6b0b960544"
+      },
+      {
+        "path": "server/src/test/java/com/example/server/generation/ShotGenerationApiTest.java",
+        "sha256": "99e4f0c6d1e140738eae9d860183f37288f2bb953db5c2e8273a1e879c50ebdd"
+      },
+      {
+        "path": "server/src/test/java/com/example/server/generation/ShotGenerationFlowTest.java",
+        "sha256": "8bfdba1078ecf05c50ee2cdfb33afb03df55f45e332d6dcad3de0667ac6bdb24"
+      },
+      {
+        "path": "server/src/test/java/com/example/server/generation/SiliconFlowGenerationProviderTest.java",
+        "sha256": "2fef4a7c1f1b2ea1d2700fece286282307e8b7a5d7763e9b954a7c1f175721c4"
+      },
+      {
+        "path": "server/src/test/java/com/example/server/generation/StoryboardApiTest.java",
+        "sha256": "20b775e49fcf6795c5f4aaec14af42e7d5ecf84ce0a5e540786a1e82ef91110e"
+      },
+      {
+        "path": "server/src/test/java/com/example/server/generation/StoryboardFlowTest.java",
+        "sha256": "72e9775bbe1deb883e8ff0f9f8d724db0f64bf5459d29ddf573aeafc9903e1fd"
+      },
+      {
+        "path": "server/src/test/java/com/example/server/storyboard/DeepSeekStoryboardTest.java",
+        "sha256": "400997af4d7d425c1801cce6c062cca3b8ff7829b8932cbc795893df449db942"
+      }
+    ]
+  },
+  "verification": {
+    "serverUnit": {
+      "tests": 99,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "realInfrastructure": {
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "clientTests": 54,
+    "clientBuild": "PASS"
+  },
+  "infrastructure": {
+    "result": "PASS",
+    "checks": [
+      "Real MySQL Flyway V1-V9 migrations and case-sensitive idempotency collation",
+      "Real registration, login and Redis authentication",
+      "Eight concurrent HTTP submissions create one MySQL task; conflicts and owner isolation enforced",
+      "Authenticated multipart reference upload deduplicates content, enforces ownership and persists asset IDs without inline data",
+      "DeepSeek planning endpoints require ownership; default paid gate rejects before MySQL reservation and leaves all model task counts unchanged",
+      "Database-only concurrent MySQL DeepSeek reservations consume exactly one call across two projects under a one-call global authorization; persistent policy counters verified without any model HTTP request",
+      "Application restart resumes QUEUED/RUNNING/SAVING using persistent DB state and the original Redis session",
+      "Expired SUBMITTING remains SUBMISSION_UNKNOWN and cannot be blindly retried",
+      "Actual MinIO signed download matches MP4 bytes, length and SHA-256; retry keeps one object and anonymous download is denied",
+      "Both text-to-video and image-to-video finish through automatic scheduled workers",
+      "Reference objects remain private after restart; owner-only trace preserves effective parameters and ordered stage timestamps",
+      "Template storyboard creation, idempotent editing, immutable revisions and confirmation history survive application restart; confirmation creates no video task",
+      "Concurrent confirmed-storyboard submission creates one three-shot batch; queued shot tasks resume after restart and archive private MinIO artifacts; local regeneration creates only one new version and enforces project quota",
+      "Database-only concurrent MySQL reservations admit one 6 CNY reservation under a 10 CNY cap and persist counters across repository restart; no model call",
+      "Shot input snapshots, four generation versions, completed artifacts and immutable consumed project quota survive a second application restart",
+      "Queued composition survives restart and executes real FFmpeg normalization, Chinese subtitle burn-in, audio padding and concat; private H.264 MP4 metadata, SHA-256 and owner-only streaming download verified without creating model tasks",
+      "Human-review idempotency, ownership, all-version denominator and Mock labeling persist across restart; authenticated JSON and formula-safe CSV exports verified",
+      "Video provider=mock; video and DeepSeek paid gates are closed in all server instances"
+    ],
+    "modelProvider": "mock",
+    "paidCalls": 0
+  },
+  "browser": {
+    "result": "PASS",
+    "provider": "mock",
+    "paidCalls": 0,
+    "date": "2026-10-02",
+    "scope": "DeepSeek adapter addition; closed paid gate, no real model quality verification",
+    "checks": [
+      "Browser login and template project creation",
+      "DeepSeek runtime states paid invocation disabled",
+      "Paid submission button is disabled",
+      "Authenticated direct POST is rejected with HTTP 403 and creates zero model tasks",
+      "Model and video paid gates remain closed by local launcher"
+    ],
+    "screenshot": "deepseek-workbench.png",
+    "taskCountBefore": 0,
+    "taskCountAfter": 0,
+    "runtimeReady": false,
+    "maxCalls": 0
+  },
+  "demonstration": null,
+  "limitations": [
+    "No real model invocation, real model quality evaluation or provider billing reconciliation",
+    "Original RocketMQ/Qdrant/ASR analysis services not exercised"
+  ]
+}

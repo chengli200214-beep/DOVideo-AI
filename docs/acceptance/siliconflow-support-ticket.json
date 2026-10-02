@@ -1,0 +1,21 @@
+{
+  "status": "CANCELLED_BY_USER_NOT_SUBMITTED",
+  "submitted": false,
+  "officialForm": "https://siliconflow.feishu.cn/share/base/form/shrcnDiK9EIkGN3sK0PepqN1Ppb",
+  "category": "技术咨询",
+  "model": "Wan-AI/Wan2.2-I2V-A14B",
+  "traceIds": [
+    "9d37de87-7202-46ba-84fe-f652b918f587",
+    "8fdbcd21-acd6-41ee-b47d-c755eb5af35a",
+    "1bc020e1-897e-4417-b1f2-a8e2ec6e1f1f"
+  ],
+  "missingRequiredField": "接收反馈邮箱",
+  "phoneSent": false,
+  "accountIdentifiersSent": false,
+  "apiKeySent": false,
+  "imageSent": false,
+  "newVideoSubmissions": 0,
+  "screenshot": "siliconflow-support-draft.png",
+  "checkedAt": "2026-10-02T21:06:27.2723303+08:00",
+  "cancellationReason": "用户要求不提交工单，改查替代方案。"
+}

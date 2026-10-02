@@ -44,7 +44,9 @@ services:
       - ./qdrant/data:/qdrant/storage
 
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: dovideo-minio:RELEASE.2025-09-07T16-13-09Z-source
+    build:
+      context: ./infrastructure/minio
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"

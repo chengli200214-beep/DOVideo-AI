@@ -1,0 +1,313 @@
+{
+  "status": "PASS_REAL_SEEDANCE_T2V_I2V_AND_MULTI_SHOT_FILM",
+  "checkedAtUtc": "2026-10-02T14:22:11.9557573Z",
+  "provider": "seedance",
+  "model": "doubao-seedance-2-0-mini-260615",
+  "userAuthorization": "unlimited task count and budget for completing the project",
+  "actualGenerationCalls": 4,
+  "textToVideoCalls": 1,
+  "imageToVideoCalls": 3,
+  "backendRegression": {
+    "tests": 117,
+    "errors": 0,
+    "skipped": 0,
+    "standaloneProviderWiringCovered": true,
+    "failures": 0
+  },
+  "frontendRegression": {
+    "tests": 54,
+    "source": "passed during preceding integration; frontend unchanged in this real validation",
+    "failures": 0
+  },
+  "productionAppBuild": true,
+  "realMiddlewaresRunning": [
+    "MySQL",
+    "Redis",
+    "MinIO"
+  ],
+  "middlewareIntegrationSuiteRerun": false,
+  "project": {
+    "source": "previous real DeepSeek draft with manually confirmed revisions",
+    "id": "370ebf90-3577-4082-88df-bd0763662954",
+    "confirmedRevision": 2,
+    "mockGenerationVersions": 0
+  },
+  "textTask": {
+    "id": "834e4197-363a-4d2e-816c-c64198a3e855",
+    "provider": "seedance",
+    "model": "doubao-seedance-2-0-mini-260615",
+    "state": "SUCCEEDED",
+    "remoteId": "cgt-20261002221512-7mzcc",
+    "artifactKey": "generated/2/834e4197-363a-4d2e-816c-c64198a3e855/video.mp4",
+    "artifactSize": 1681809,
+    "artifactSha256": "9d3d033083f3033dca1cdcf08c0c6bff0de6171981b2c9e2c6f1710364ccb4d1",
+    "errorCode": null,
+    "recoverable": false,
+    "attempts": 0,
+    "createdAt": 1790950496213,
+    "updatedAt": 1790950603250,
+    "recoveryAvailable": true
+  },
+  "imageArtifacts": [
+    {
+      "sequence": 1,
+      "title": "整体外观",
+      "versionId": "35df4463-f7c5-4e13-8f03-3912af70bf9e",
+      "taskId": "52ed4cb5-946e-4cfc-ab71-12055733367c",
+      "remoteId": "cgt-20261002220639-wznj8",
+      "file": "docs/acceptance/seedance-shot-1.mp4",
+      "size": 1809520,
+      "sha256": "c201c7c00ae934f58ae83bef7a330082b2bf1d87843d0d87d6f2d2078b99aa2b",
+      "privateMinioDownloadHashVerified": true,
+      "probe": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "h264",
+            "codec_type": "video",
+            "width": 720,
+            "height": 1280,
+            "r_frame_rate": "24/1"
+          }
+        ],
+        "format": {
+          "duration": "5.041667"
+        }
+      }
+    },
+    {
+      "sequence": 2,
+      "title": "拿取放入",
+      "versionId": "36eca555-a536-4e23-8434-ccd02f6ac9be",
+      "taskId": "cfe8cc49-877f-4f7b-a7ec-b4a6c803fca2",
+      "remoteId": "cgt-20261002220732-58xj6",
+      "file": "docs/acceptance/seedance-shot-2.mp4",
+      "size": 2904912,
+      "sha256": "6fd28f4a5d7c09c80e9b312b248553b04d4bca47ca2788d26a9795be3855e150",
+      "privateMinioDownloadHashVerified": true,
+      "probe": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "h264",
+            "codec_type": "video",
+            "width": 720,
+            "height": 1280,
+            "r_frame_rate": "24/1"
+          }
+        ],
+        "format": {
+          "duration": "5.041667"
+        }
+      }
+    },
+    {
+      "sequence": 3,
+      "title": "桌面静置",
+      "versionId": "650941df-69a5-47af-8836-be141c891b0e",
+      "taskId": "88a00086-1549-40af-aaf9-02b6b702b299",
+      "remoteId": "cgt-20261002220733-b9m9f",
+      "file": "docs/acceptance/seedance-shot-3.mp4",
+      "size": 1903290,
+      "sha256": "3fd699f27a25e1b3a00190d10ef48040eacbdd65ea9c1790d3237a5e46f58a34",
+      "privateMinioDownloadHashVerified": true,
+      "probe": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "h264",
+            "codec_type": "video",
+            "width": 720,
+            "height": 1280,
+            "r_frame_rate": "24/1"
+          }
+        ],
+        "format": {
+          "duration": "5.041667"
+        }
+      }
+    }
+  ],
+  "film": {
+    "metadata": {
+      "output": {
+        "durationSeconds": 15.146333,
+        "hasAudio": true,
+        "videoCodec": "h264",
+        "height": 1280,
+        "width": 720
+      },
+      "burnCaptions": true,
+      "inputs": [
+        {
+          "durationSeconds": 5.041667,
+          "source": {
+            "durationSeconds": 5.041667,
+            "hasAudio": false,
+            "videoCodec": "h264",
+            "height": 1280,
+            "width": 720
+          },
+          "versionId": "35df4463-f7c5-4e13-8f03-3912af70bf9e"
+        },
+        {
+          "durationSeconds": 5.041667,
+          "source": {
+            "durationSeconds": 5.041667,
+            "hasAudio": false,
+            "videoCodec": "h264",
+            "height": 1280,
+            "width": 720
+          },
+          "versionId": "36eca555-a536-4e23-8434-ccd02f6ac9be"
+        },
+        {
+          "durationSeconds": 5.041667,
+          "source": {
+            "durationSeconds": 5.041667,
+            "hasAudio": false,
+            "videoCodec": "h264",
+            "height": 1280,
+            "width": 720
+          },
+          "versionId": "650941df-69a5-47af-8836-be141c891b0e"
+        }
+      ],
+      "renderer": "ffmpeg-h264-aac-v1",
+      "audioPolicy": "preserve available source audio; pad missing audio with silence"
+    },
+    "containsMusic": false,
+    "file": "seedance-film.mp4",
+    "fullDecodePassed": true,
+    "state": "SUCCEEDED",
+    "sha256": "ab476723bdb302edf544ed8ad239185f1146b2b05ef9ab575d33537414b46155",
+    "privateDownloadHashVerified": true,
+    "size": 1663105,
+    "containsTts": false,
+    "id": "71e629e8-c977-4104-980b-cc84bff141ae"
+  },
+  "recovery": {
+    "replayDidNotIncreaseLedger": true,
+    "applicationRestartValidated": true,
+    "generationReplayReused": true,
+    "compositionReplayReused": true,
+    "verifiedExactHost": "ark-acg-cn-beijing.tos-cn-beijing.volces.com",
+    "firstArchiveBlockedByEmptyHostAllowlist": true,
+    "restoredOriginalTasksWithoutNewPosts": true
+  },
+  "ledgers": {
+    "checkedAtUtc": "2026-10-02T14:19:16.6415838Z",
+    "ledgers": [
+      {
+        "provider": "seedance",
+        "usedTasks": 4,
+        "reservedCostCny": 20.0,
+        "reservationCount": 4
+      },
+      {
+        "provider": "siliconflow",
+        "usedTasks": 4,
+        "reservedCostCny": 10.0,
+        "reservationCount": 4
+      }
+    ],
+    "statistics": {
+      "filmTaskCount": 1,
+      "projectVersions": 3,
+      "seedanceTaskCount": 4,
+      "seedanceUnknownCount": 0,
+      "projectReservationCny": 15.0,
+      "historicalUnknownCount": 3,
+      "seedanceSubmittingCount": 0
+    },
+    "actualSupplierCostsReconciled": false
+  },
+  "historicalUnknownTasksPreserved": [
+    {
+      "id": "1bc020e1-897e-4417-b1f2-a8e2ec6e1f1f",
+      "state": "SUBMISSION_UNKNOWN",
+      "remoteId": null
+    },
+    {
+      "id": "9d37de87-7202-46ba-84fe-f652b918f587",
+      "state": "SUBMISSION_UNKNOWN",
+      "remoteId": null
+    },
+    {
+      "id": "8fdbcd21-acd6-41ee-b47d-c755eb5af35a",
+      "state": "SUBMISSION_UNKNOWN",
+      "remoteId": null
+    }
+  ],
+  "historicalT2vPreserved": true,
+  "supportTicketSubmitted": false,
+  "providerReportedCompletionTokens": 435600.0,
+  "supplierBillReconciled": false,
+  "formalHumanScoresEntered": 0,
+  "visualObservation": "seedance-visual-observations.md",
+  "browserVerification": {
+    "screenshot": "seedance-real-workbench.jpg",
+    "archivedFilmVisible": true,
+    "previewLoaded": true,
+    "realShotsVisible": true
+  },
+  "runtime": {
+    "paidGenerationEnabled": true,
+    "ordinaryLauncherDefaultPaidEnabled": false,
+    "separateAuthorizedLauncher": ".local/start-seedance-authorized.ps1",
+    "capabilities": [
+      {
+        "kind": "TEXT_TO_VIDEO",
+        "provider": "seedance",
+        "model": "doubao-seedance-2-0-mini-260615",
+        "enabled": true,
+        "available": true,
+        "sizes": [
+          "1280x720",
+          "720x1280",
+          "720x720"
+        ],
+        "negativePrompt": false,
+        "seed": true,
+        "maxPromptLength": 2000,
+        "referenceImageRequired": false,
+        "maxImageBytes": 5242880,
+        "maxImageEdge": 4096
+      },
+      {
+        "kind": "IMAGE_TO_VIDEO",
+        "provider": "seedance",
+        "model": "doubao-seedance-2-0-mini-260615",
+        "enabled": true,
+        "available": true,
+        "sizes": [
+          "1280x720",
+          "720x1280",
+          "720x720"
+        ],
+        "negativePrompt": false,
+        "seed": true,
+        "maxPromptLength": 2000,
+        "referenceImageRequired": true,
+        "maxImageBytes": 5242880,
+        "maxImageEdge": 4096
+      }
+    ]
+  },
+  "remaining": [],
+  "projectStatus": "COMPLETE_WITHIN_USER_CONFIRMED_SCOPE",
+  "excludedAtUserRequest": {
+    "confirmedAtUtc": "2026-10-02T14:29:15.9986900Z",
+    "userInstruction": "不用这三项收尾了",
+    "items": [
+      "supplier actual bill reconciliation",
+      "user human quality scoring",
+      "historical SiliconFlow unknown outcomes"
+    ],
+    "reason": "Removed from acceptance scope by explicit user instruction",
+    "existingFactsPreserved": true
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "status": "PASS_SEEDANCE_ENGINEERING_VALIDATION",
+  "checkedAtUtc": "2026-10-02T13:36:29.0960515Z",
+  "model": "doubao-seedance-2-0-mini-260615",
+  "credentialStorage": "ignored .local/seedance-video.env",
+  "consoleVerification": {
+    "apiKeyActive": true,
+    "keyModelPermission": "Doubao-Seedance-2.0-mini",
+    "modelServiceEnabled": true,
+    "performedReadOnly": true
+  },
+  "backendRegression": {
+    "errors": 0,
+    "tests": 116,
+    "failures": 0,
+    "skipped": 0
+  },
+  "frontendRegression": {
+    "tests": 54,
+    "failures": 0,
+    "skipped": 0
+  },
+  "newSeedanceTests": 12,
+  "productionBuild": true,
+  "independentAppStartup": true,
+  "runtime": {
+    "storyboardReason": "DeepSeek 分镜付费调用尚未启用；可继续使用本地模板",
+    "paidGenerationEnabled": false,
+    "oldUnknownTasks": [
+      {
+        "id": "1bc020e1-897e-4417-b1f2-a8e2ec6e1f1f",
+        "state": "SUBMISSION_UNKNOWN",
+        "remoteId": null,
+        "recoveryAvailable": true,
+        "provider": "siliconflow"
+      },
+      {
+        "id": "9d37de87-7202-46ba-84fe-f652b918f587",
+        "state": "SUBMISSION_UNKNOWN",
+        "remoteId": null,
+        "recoveryAvailable": true,
+        "provider": "siliconflow"
+      },
+      {
+        "id": "8fdbcd21-acd6-41ee-b47d-c755eb5af35a",
+        "state": "SUBMISSION_UNKNOWN",
+        "remoteId": null,
+        "recoveryAvailable": true,
+        "provider": "siliconflow"
+      }
+    ],
+    "storyboardMaxCalls": 0,
+    "storyboardReady": false,
+    "originalT2vArchiveHashVerified": true,
+    "historicalBudget": {
+      "usedTasks": 4,
+      "reservedCostCny": 10.0,
+      "reservationCount": 4,
+      "seedanceTaskCount": 0
+    },
+    "credentialNotExposed": true,
+    "capabilities": [
+      {
+        "kind": "TEXT_TO_VIDEO",
+        "provider": "seedance",
+        "model": "doubao-seedance-2-0-mini-260615",
+        "enabled": true,
+        "available": false,
+        "sizes": [
+          "1280x720",
+          "720x1280",
+          "720x720"
+        ],
+        "negativePrompt": false,
+        "seed": true,
+        "maxPromptLength": 2000,
+        "referenceImageRequired": false,
+        "maxImageBytes": 5242880,
+        "maxImageEdge": 4096
+      },
+      {
+        "kind": "IMAGE_TO_VIDEO",
+        "provider": "seedance",
+        "model": "doubao-seedance-2-0-mini-260615",
+        "enabled": true,
+        "available": false,
+        "sizes": [
+          "1280x720",
+          "720x1280",
+          "720x720"
+        ],
+        "negativePrompt": false,
+        "seed": true,
+        "maxPromptLength": 2000,
+        "referenceImageRequired": true,
+        "maxImageBytes": 5242880,
+        "maxImageEdge": 4096
+      }
+    ]
+  },
+  "parameters": {
+    "watermark": true,
+    "resolution": "720p",
+    "generateAudio": false,
+    "durationSeconds": 5,
+    "referenceMode": "private PNG/JPEG, first_frame"
+  },
+  "paidGenerationRequestsDuringThisWork": 0,
+  "realSeedanceGenerationVerified": false,
+  "pending": [
+    "explicit Seedance paid authorization",
+    "real image-to-video generation and actual artifact-host validation",
+    "real multi-shot film and human evaluation",
+    "historical SiliconFlow unknown outcomes and final bills"
+  ],
+  "followup": "Initial disabled startup did not detect missing standalone Seedance registration. Fixed in AigcApplication; actual context test and 117-test regression passed, then real model validation succeeded. See seedance-real.json."
+}

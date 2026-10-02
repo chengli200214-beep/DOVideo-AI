@@ -1,0 +1,160 @@
+{
+  "status": "PREPARED_AWAITING_PAID_AUTHORIZATION",
+  "project": {
+    "id": "370ebf90-3577-4082-88df-bd0763662954",
+    "status": "CONFIRMED",
+    "brief": {
+      "title": "便携水杯 · Seedance Mini 真实验收准备",
+      "goal": "制作15秒产品介绍短视频，准确展示提供的卖点，不编造性能",
+      "productName": "便携水杯",
+      "sellingPoints": [
+        "便携",
+        "简洁外观"
+      ],
+      "style": "自然光、简洁生活化场景、平缓运镜",
+      "desiredDurationSeconds": 15,
+      "frameRatio": "9:16",
+      "referenceAssetId": null,
+      "shotCount": 3
+    },
+    "revision": {
+      "number": 2,
+      "parent": 1,
+      "origin": "USER",
+      "planner": "manual",
+      "draft": {
+        "script": "15秒便携水杯产品介绍短视频。以自然光和简洁生活化场景呈现，平缓运镜。开场展示水杯整体外观，突出简洁外观；中段展示单手拿取与放入包侧袋，体现便携；结尾静置于桌面，收束产品印象。不涉及密封、保温、容量等未提供卖点。",
+        "shots": [
+          {
+            "id": "f1a9f576-3986-4921-8dbf-1b05c3d599bd",
+            "sequence": 1,
+            "title": "整体外观",
+            "subject": "便携水杯",
+            "action": "水杯静置于浅色桌面，杯身完整入画，在自然光下呈现简洁外观",
+            "setting": "简洁生活化桌面，窗边自然光，背景干净",
+            "camera": "平缓横移后轻微推进",
+            "referenceAssetId": "520081b9-170d-4146-9ade-f4e73f3cce5f",
+            "desiredDurationSeconds": 5,
+            "frameRatio": "9:16",
+            "caption": "便携水杯",
+            "narration": "便携水杯，简洁外观。",
+            "prompt": "便携水杯静置于浅色桌面，杯身完整入画，简洁生活化场景，窗边自然光柔和照射，背景干净，镜头平缓横移后轻微推进，呈现水杯简洁外观，9:16竖画幅",
+            "promptVersion": 1,
+            "parameters": {
+              "negativePrompt": null,
+              "seed": null
+            }
+          },
+          {
+            "id": "92bddd10-3bac-4f10-bdff-f38991f0e0d3",
+            "sequence": 2,
+            "title": "拿取放入",
+            "subject": "便携水杯",
+            "action": "一只手轻握水杯，将其放入背包侧袋，动作自然连贯",
+            "setting": "居家客厅一角，自然光从侧面照入，背包放在椅边",
+            "camera": "跟随手部动作平缓移动",
+            "referenceAssetId": "520081b9-170d-4146-9ade-f4e73f3cce5f",
+            "desiredDurationSeconds": 5,
+            "frameRatio": "9:16",
+            "caption": "轻松拿取 方便携带",
+            "narration": "轻松拿取，方便携带。",
+            "prompt": "一只手轻握便携水杯，将水杯放入背包侧袋，动作自然连贯，居家客厅一角，侧面自然光，背包放在椅边，镜头跟随手部动作平缓移动，体现便携，9:16竖画幅",
+            "promptVersion": 1,
+            "parameters": {
+              "negativePrompt": null,
+              "seed": null
+            }
+          },
+          {
+            "id": "e51e7b68-e0bb-4235-849d-173fd34f59be",
+            "sequence": 3,
+            "title": "桌面静置",
+            "subject": "便携水杯",
+            "action": "水杯静置于桌面，杯身反射柔和自然光，画面平稳收束",
+            "setting": "简洁桌面，背景有绿植虚影，自然光均匀",
+            "camera": "缓慢拉远",
+            "referenceAssetId": "520081b9-170d-4146-9ade-f4e73f3cce5f",
+            "desiredDurationSeconds": 5,
+            "frameRatio": "9:16",
+            "caption": "简洁便携 日常好用",
+            "narration": "简洁便携，适合日常使用。",
+            "prompt": "便携水杯静置于桌面，杯身反射柔和自然光，背景有绿植虚影，简洁生活化场景，自然光均匀，镜头缓慢拉远，画面平稳收束，9:16竖画幅",
+            "promptVersion": 1,
+            "parameters": {
+              "negativePrompt": null,
+              "seed": null
+            }
+          }
+        ]
+      },
+      "validationErrors": [],
+      "createdAt": 1790948161891
+    },
+    "confirmedRevision": 2,
+    "createdAt": 1790948161829,
+    "updatedAt": 1790948161931
+  },
+  "source": {
+    "origin": "DeepSeek draft with confirmed manual changes",
+    "revision": 3,
+    "oldUnknownTasksPreserved": true,
+    "projectId": "a35ff1eb-f819-48c5-849a-ed7078b4c02b"
+  },
+  "proposedAuthorization": {
+    "totalReservationCny": 15,
+    "model": "doubao-seedance-2-0-mini-260615",
+    "durationSecondsPerShot": 5,
+    "reservationPerTaskCny": 5,
+    "generateAudio": false,
+    "resolution": "720p",
+    "provider": "seedance",
+    "maxSubmissions": 3
+  },
+  "runtimeCapabilities": [
+    {
+      "kind": "TEXT_TO_VIDEO",
+      "provider": "seedance",
+      "model": "doubao-seedance-2-0-mini-260615",
+      "enabled": true,
+      "available": false,
+      "sizes": [
+        "1280x720",
+        "720x1280",
+        "720x720"
+      ],
+      "negativePrompt": false,
+      "seed": true,
+      "maxPromptLength": 2000,
+      "referenceImageRequired": false,
+      "maxImageBytes": 5242880,
+      "maxImageEdge": 4096
+    },
+    {
+      "kind": "IMAGE_TO_VIDEO",
+      "provider": "seedance",
+      "model": "doubao-seedance-2-0-mini-260615",
+      "enabled": true,
+      "available": false,
+      "sizes": [
+        "1280x720",
+        "720x1280",
+        "720x720"
+      ],
+      "negativePrompt": false,
+      "seed": true,
+      "maxPromptLength": 2000,
+      "referenceImageRequired": true,
+      "maxImageBytes": 5242880,
+      "maxImageEdge": 4096
+    }
+  ],
+  "quoteBlockedPendingAuthorization": true,
+  "budget": {
+    "maxVersions": 3,
+    "costLimit": 15.0,
+    "usedVersions": 0,
+    "reservedCost": 0.0
+  },
+  "submittedModelTasks": 0,
+  "actualSupplierChargeVerified": false
+}

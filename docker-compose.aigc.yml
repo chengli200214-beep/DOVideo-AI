@@ -1,0 +1,41 @@
+services:
+  mysql:
+    image: mysql:8.0
+    ports: ["127.0.0.1:3308:3306"]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${AIGC_MYSQL_ROOT_PASSWORD:?required}
+      MYSQL_DATABASE: aigc
+      MYSQL_USER: aigc
+      MYSQL_PASSWORD: ${AIGC_DB_PASSWORD:?required}
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes: ["aigc-mysql:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  redis:
+    image: redis:7.4-alpine
+    ports: ["127.0.0.1:6380:6379"]
+    environment:
+      REDIS_PASSWORD: ${AIGC_REDIS_PASSWORD:?required}
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    volumes: ["aigc-redis:/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  minio:
+    image: dovideo-minio:RELEASE.2025-09-07T16-13-09Z-source
+    build: { context: ./infrastructure/minio }
+    ports: ["127.0.0.1:9002:9000", "127.0.0.1:9003:9001"]
+    environment:
+      MINIO_ROOT_USER: aigc-local
+      MINIO_ROOT_PASSWORD: ${AIGC_MINIO_PASSWORD:?required}
+    command: server /data --console-address ":9001"
+    volumes: ["aigc-minio:/data"]
+volumes:
+  aigc-mysql:
+  aigc-redis:
+  aigc-minio:

@@ -1,0 +1,94 @@
+{
+  "id": "a35ff1eb-f819-48c5-849a-ed7078b4c02b",
+  "status": "DRAFT",
+  "brief": {
+    "title": "便携水杯 · DeepSeek 真实分镜验收",
+    "goal": "制作15秒产品介绍短视频，准确展示提供的卖点，不编造性能",
+    "productName": "便携水杯",
+    "sellingPoints": [
+      "便携",
+      "简洁外观"
+    ],
+    "style": "自然光、简洁生活化场景、平缓运镜",
+    "desiredDurationSeconds": 15,
+    "frameRatio": "9:16",
+    "referenceAssetId": null,
+    "shotCount": 3
+  },
+  "revision": {
+    "number": 2,
+    "parent": 1,
+    "origin": "MODEL",
+    "planner": "deepseek-api-v1",
+    "draft": {
+      "script": "15秒便携水杯产品介绍短视频。以自然光和简洁生活化场景呈现，平缓运镜。开场展示水杯整体外观，突出简洁外观；中段展示单手拿取与放入包侧袋，体现便携；结尾静置于桌面，收束产品印象。不涉及密封、保温、容量等未提供卖点。",
+      "shots": [
+        {
+          "id": "89da3a21-6fcf-4570-b837-fce1bb29fea5",
+          "sequence": 1,
+          "title": "整体外观",
+          "subject": "便携水杯",
+          "action": "水杯静置于浅色桌面，杯身完整入画，在自然光下呈现简洁外观",
+          "setting": "简洁生活化桌面，窗边自然光，背景干净",
+          "camera": "平缓横移后轻微推进",
+          "referenceAssetId": null,
+          "desiredDurationSeconds": 5,
+          "frameRatio": "9:16",
+          "caption": "便携水杯",
+          "narration": "便携水杯，简洁外观。",
+          "prompt": "便携水杯静置于浅色桌面，杯身完整入画，简洁生活化场景，窗边自然光柔和照射，背景干净，镜头平缓横移后轻微推进，呈现水杯简洁外观，9:16竖画幅",
+          "promptVersion": 1,
+          "parameters": {
+            "negativePrompt": null,
+            "seed": null
+          }
+        },
+        {
+          "id": "a3ed341b-75f3-49d8-9120-9638c1ed7bff",
+          "sequence": 2,
+          "title": "拿取放入",
+          "subject": "便携水杯",
+          "action": "一只手轻握水杯，将其放入背包侧袋，动作自然连贯",
+          "setting": "居家客厅一角，自然光从侧面照入，背包放在椅边",
+          "camera": "跟随手部动作平缓移动",
+          "referenceAssetId": null,
+          "desiredDurationSeconds": 5,
+          "frameRatio": "9:16",
+          "caption": "轻松拿取 方便携带",
+          "narration": "轻松拿取，方便携带。",
+          "prompt": "一只手轻握便携水杯，将水杯放入背包侧袋，动作自然连贯，居家客厅一角，侧面自然光，背包放在椅边，镜头跟随手部动作平缓移动，体现便携，9:16竖画幅",
+          "promptVersion": 1,
+          "parameters": {
+            "negativePrompt": null,
+            "seed": null
+          }
+        },
+        {
+          "id": "76ce97cb-f468-4df1-ba94-55e12603bae9",
+          "sequence": 3,
+          "title": "桌面静置",
+          "subject": "便携水杯",
+          "action": "水杯静置于桌面，杯身反射柔和自然光，画面平稳收束",
+          "setting": "简洁桌面，背景有绿植虚影，自然光均匀",
+          "camera": "缓慢拉远",
+          "referenceAssetId": null,
+          "desiredDurationSeconds": 5,
+          "frameRatio": "9:16",
+          "caption": "简洁便携 日常好用",
+          "narration": "简洁便携，适合日常使用。",
+          "prompt": "便携水杯静置于桌面，杯身反射柔和自然光，背景有绿植虚影，简洁生活化场景，自然光均匀，镜头缓慢拉远，画面平稳收束，9:16竖画幅",
+          "promptVersion": 1,
+          "parameters": {
+            "negativePrompt": null,
+            "seed": null
+          }
+        }
+      ]
+    },
+    "validationErrors": [],
+    "createdAt": 1790935556445
+  },
+  "confirmedRevision": null,
+  "createdAt": 1790935552309,
+  "updatedAt": 1790935556445
+}

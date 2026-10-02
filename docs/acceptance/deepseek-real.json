@@ -1,0 +1,76 @@
+{
+  "model": "deepseek-flash",
+  "builtApplicationSha256": "2e4f5bf69e6777c6ad61c59bde90e087832dbc30d2a9a39301e452bd77fa691a",
+  "authorization": {
+    "userBudgetAuthorization": "No user budget cap",
+    "authorizationId": "deepseek-real-fe8e68fff8364e379aca0ee2877497f2",
+    "model": "deepseek-flash",
+    "estimateBasis": "Peak, cache-miss rates; conservative estimate, not actual billing",
+    "operationalMaxCalls": 1,
+    "authorizedAtUtc": "2026-10-02T10:05:15.1324534Z",
+    "provider": "DeepSeek",
+    "pricingSource": "https://api-docs.deepseek.com/quick_start/pricing/",
+    "scope": "One real storyboard validation request; no video model authorization",
+    "operationalReservationUsd": 0.02
+  },
+  "status": "SUCCEEDED",
+  "responseId": "47530d33-77b1-403c-8af0-dcd964574cf0",
+  "realGenerationRequests": 1,
+  "video": {
+    "realRequests": 0,
+    "validationAccountTaskCount": 0,
+    "provider": "mock",
+    "paidEnabled": false
+  },
+  "confirmedRevision": null,
+  "projectId": "a35ff1eb-f819-48c5-849a-ed7078b4c02b",
+  "result": "PASS",
+  "browser": {
+    "scriptAndThreeShotsVisible": true,
+    "screenshot": "deepseek-real-workbench.png",
+    "paidSubmitDisabledAfterValidationQuota": true,
+    "result": "PASS",
+    "revision": 2,
+    "modelResultVisible": true
+  },
+  "artifacts": {
+    "screenshot": "deepseek-real-workbench.png",
+    "storyboard": "deepseek-real-storyboard.json"
+  },
+  "estimatedCost": {
+    "amount": 0.000719,
+    "currency": "USD",
+    "basis": "Configured peak/cache-miss input and output prices; actual invoice not reconciled"
+  },
+  "shotCount": 3,
+  "taskId": "a19e7b91-94a7-43a8-8eec-9232ecbd05f6",
+  "plannedDurationSeconds": 15.0,
+  "limitations": [
+    "Only one text-only storyboard case; no broad model quality benchmark",
+    "Provider invoice not reconciled; estimate is not actual cost",
+    "No real text-to-video or image-to-video calls",
+    "Result awaits human review and confirmation"
+  ],
+  "provider": "DeepSeek official API",
+  "savedRevision": 2,
+  "duplicateIntent": {
+    "usedCallsBefore": 1,
+    "sameTask": true,
+    "projectPlanningTasks": 1,
+    "usedCallsAfter": 1
+  },
+  "recordedAtUtc": "2026-10-02T10:07:42.5786421Z",
+  "taskElapsedMs": 2918,
+  "scope": "One real DeepSeek storyboard call, not a real video model acceptance",
+  "usage": {
+    "prompt_tokens": 420,
+    "completion_tokens": 494,
+    "total_tokens": 914,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 420
+  },
+  "revisionOrigin": "MODEL"
+}

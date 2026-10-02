@@ -1,0 +1,5 @@
+[
+  {"id":"shoe-display","title":"运动鞋产品展示","seed":42,"originalPrompt":"一双白色运动鞋。","structuredPrompt":"主体是一双白色运动鞋，置于浅灰展示台。柔和自然光，鞋体缓慢旋转，镜头平稳推进，保持鞋型、颜色和材质一致，简洁产品展示风格。"},
+  {"id":"bottle-display","title":"水杯产品展示","seed":43,"originalPrompt":"一个蓝色水杯。","structuredPrompt":"主体是一个蓝色水杯，位于干净木桌中央。背景简洁，均匀柔光，镜头从侧面缓慢移动，杯体保持完整，颜色一致，展示杯盖与握持结构，避免突变。"},
+  {"id":"lamp-display","title":"台灯产品展示","seed":44,"originalPrompt":"一盏台灯。","structuredPrompt":"主体是一盏简洁白色台灯，置于安静书桌。灯光缓慢亮起，镜头固定并轻微推进，保持灯体结构稳定，暖光与自然背景协调，清晰产品展示。"}
+]

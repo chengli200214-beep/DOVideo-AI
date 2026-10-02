@@ -35,7 +35,14 @@
     </header>
 
     <main class="main-container">
-      <section class="hero-section">
+      <nav class="workspace-switch" aria-label="工作区">
+        <button v-if="!AIGC_ONLY" :class="{ active: workspaceMode === 'analysis' }" @click="workspaceMode = 'analysis'">视频理解</button>
+        <button :class="{ active: workspaceMode === 'generation' }" @click="workspaceMode = 'generation'">AIGC 视频生成</button>
+        <button :class="{ active: workspaceMode === 'storyboard' }" @click="workspaceMode = 'storyboard'">脚本与分镜</button>
+      </nav>
+      <GenerationWorkspace v-if="workspaceMode === 'generation'" :user="currentUser" @login="openAuthModal" />
+      <StoryboardWorkspace v-if="workspaceMode === 'storyboard'" :user="currentUser" @login="openAuthModal" />
+      <section v-show="workspaceMode === 'analysis'" class="hero-section">
         <h1 class="slogan-main">DECODE YOUR VIDEO</h1>
         <p class="slogan-sub">影视重构 · 算力赋能</p>
 
@@ -145,7 +152,7 @@
         </transition>
       </section>
 
-      <section v-if="list.length > 0" class="workspace-section">
+      <section v-if="list.length > 0" v-show="workspaceMode === 'analysis'" class="workspace-section">
         <div class="section-header">
           <div class="library-title">
             <h3>视频资料库</h3>
@@ -237,13 +244,14 @@
         </div>
       </section>
 
-      <div v-if="currentUser && (listError || !list.length)" class="library-empty" role="status">
+      <div v-if="workspaceMode === 'analysis' && currentUser && (listError || !list.length)" class="library-empty" role="status">
         <p>{{ listLoading ? '正在加载视频资料库…' : listError || '还没有视频，上传本地文件或粘贴视频链接即可开始分析。' }}</p>
         <button v-if="listError" type="button" :disabled="listLoading" @click="fetchList({ notify: true })">重新加载</button>
       </div>
 
       <div class="sidebar-backdrop" v-if="sidebar.visible" @click="closeSidebar"></div>
       <div
+          v-if="!AIGC_ONLY"
           ref="sidebarPanel"
           class="sidebar-panel"
           :class="{ 'is-open': sidebar.visible }"
@@ -513,6 +521,8 @@ import {
 import { DEMO_ITEM } from './demoData'
 import { createTaskStreams } from './taskEvents'
 import { useAnalysisWorkspace } from './useAnalysisWorkspace'
+import GenerationWorkspace from './GenerationWorkspace.vue'
+import StoryboardWorkspace from './StoryboardWorkspace.vue'
 
 // --- 变量定义 ---
 const DEMO_MODE = new URLSearchParams(window.location.search).has('demo')
@@ -548,6 +558,9 @@ const visibleList = computed(() => {
 })
 const isDragOver = ref(false)
 const currentUser = ref(null)
+const workspaceParams = new URLSearchParams(window.location.search)
+const AIGC_ONLY = import.meta.env.VITE_AIGC_ONLY === 'true'
+const workspaceMode = ref(workspaceParams.has('storyboard') ? 'storyboard' : workspaceParams.has('generation') ? 'generation' : AIGC_ONLY ? 'storyboard' : 'analysis')
 const showAuthModal = ref(false)
 const authMode = ref('login')
 const authLoading = ref(false)
@@ -898,6 +911,7 @@ const dismissMessage = () => {
 }
 
 const fetchList = async ({ notify = false } = {}) => {
+  if (AIGC_ONLY) return []
   const requestVersion = ++listRequestVersion
   const isCurrentSession = captureAuthSession()
   const isCurrentRequest = () => requestVersion === listRequestVersion && isCurrentSession()
@@ -1388,6 +1402,10 @@ onUnmounted(() => {
 </script>
 
 <style>
+.workspace-switch { display:flex; justify-content:center; gap:8px; margin:0 auto 24px; }
+.workspace-switch button { border:1px solid #3a404d; border-radius:8px; background:#15181e; color:#a8adb9; padding:10px 20px; cursor:pointer; }
+.workspace-switch button.active { color:#b1ff86; border-color:#6f9656; }
+.workspace-switch button:focus-visible { outline:2px solid #b1ff86; outline-offset:2px; }
 /* 字体已改为 index.html 里的非阻塞 <link> 加载，此处不再用 @import 阻塞首屏 CSSOM */
 
 :root {

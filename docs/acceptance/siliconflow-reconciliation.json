@@ -1,0 +1,46 @@
+{
+  "provider": "siliconflow",
+  "endpoint": "POST /v1/video/submit",
+  "purpose": "prepare lookup of original requests; no support message sent",
+  "tasks": [
+    {
+      "localTaskId": "1bc020e1-897e-4417-b1f2-a8e2ec6e1f1f",
+      "sentTraceHeader": "X-Trace-Id",
+      "traceValue": "1bc020e1-897e-4417-b1f2-a8e2ec6e1f1f",
+      "model": "Wan-AI/Wan2.2-I2V-A14B",
+      "createdAtUtc": "2026-10-02T10:28:14.4680000Z",
+      "lastUpdatedAtUtc": "2026-10-02T10:28:16.4800000Z",
+      "remoteRequestId": null,
+      "state": "SUBMISSION_UNKNOWN",
+      "recordedErrorCode": "SUBMISSION_UNKNOWN"
+    },
+    {
+      "localTaskId": "9d37de87-7202-46ba-84fe-f652b918f587",
+      "sentTraceHeader": "X-Trace-Id",
+      "traceValue": "9d37de87-7202-46ba-84fe-f652b918f587",
+      "model": "Wan-AI/Wan2.2-I2V-A14B",
+      "createdAtUtc": "2026-10-02T10:28:14.4450000Z",
+      "lastUpdatedAtUtc": "2026-10-02T10:28:16.0370000Z",
+      "remoteRequestId": null,
+      "state": "SUBMISSION_UNKNOWN",
+      "recordedErrorCode": "SUBMISSION_UNKNOWN"
+    },
+    {
+      "localTaskId": "8fdbcd21-acd6-41ee-b47d-c755eb5af35a",
+      "sentTraceHeader": "X-Trace-Id",
+      "traceValue": "8fdbcd21-acd6-41ee-b47d-c755eb5af35a",
+      "model": "Wan-AI/Wan2.2-I2V-A14B",
+      "createdAtUtc": "2026-10-02T10:28:14.4580000Z",
+      "lastUpdatedAtUtc": "2026-10-02T10:28:16.1990000Z",
+      "remoteRequestId": null,
+      "state": "SUBMISSION_UNKNOWN",
+      "recordedErrorCode": "SUBMISSION_UNKNOWN"
+    }
+  ],
+  "rules": [
+    "local task IDs are trace values, not provider requestIds",
+    "never resubmit unknown tasks automatically",
+    "bind only supplier-verified original requestIds via the reconcile endpoint",
+    "retain all four reservations; do not reset authorization ID"
+  ]
+}

@@ -1,0 +1,142 @@
+{
+  "originalPrompt": "一只手轻握便携水杯，将水杯放入背包侧袋，动作自然连贯，居家客厅一角，侧面自然光，背包放在椅边，镜头跟随手部动作平缓移动，体现便携，9:16竖画幅",
+  "input": {
+    "kind": "IMAGE_TO_VIDEO",
+    "prompt": "一只手轻握便携水杯，将水杯放入背包侧袋，动作自然连贯，居家客厅一角，侧面自然光，背包放在椅边，镜头跟随手部动作平缓移动，体现便携，9:16竖画幅",
+    "negativePrompt": null,
+    "imageSize": "720x1280",
+    "image": null,
+    "seed": null,
+    "referenceImageId": "520081b9-170d-4146-9ade-f4e73f3cce5f"
+  },
+  "effectiveSubmission": {
+    "parameters": {
+      "model": "doubao-seedance-2-0-mini-260615",
+      "content": [
+        {
+          "text": "一只手轻握便携水杯，将水杯放入背包侧袋，动作自然连贯，居家客厅一角，侧面自然光，背包放在椅边，镜头跟随手部动作平缓移动，体现便携，9:16竖画幅",
+          "type": "text"
+        },
+        {
+          "role": "first_frame",
+          "image_url": {
+            "url": "[private-reference]"
+          },
+          "type": "image_url"
+        }
+      ],
+      "duration": 5,
+      "resolution": "720p",
+      "ratio": "9:16",
+      "generate_audio": false,
+      "watermark": true
+    },
+    "imageReference": {
+      "id": "520081b9-170d-4146-9ade-f4e73f3cce5f",
+      "objectKey": "generation-inputs/2/1a5922dfc7d023b17206cbc92a59715f8efc3e314128c4ddb1406447d3947988.png",
+      "mime": "image/png",
+      "size": 188401,
+      "sha256": "1a5922dfc7d023b17206cbc92a59715f8efc3e314128c4ddb1406447d3947988",
+      "width": 720,
+      "height": 1280,
+      "createdAt": 1790936894172
+    },
+    "redactedFields": [
+      "image",
+      "content.image_url.url"
+    ]
+  },
+  "events": [
+    {
+      "id": 64,
+      "state": "QUEUED",
+      "errorCode": null,
+      "attempts": 0,
+      "occurredAt": 1790950050115
+    },
+    {
+      "id": 66,
+      "state": "SUBMITTING",
+      "errorCode": null,
+      "attempts": 0,
+      "occurredAt": 1790950051912
+    },
+    {
+      "id": 67,
+      "state": "RUNNING",
+      "errorCode": null,
+      "attempts": 0,
+      "occurredAt": 1790950052819
+    },
+    {
+      "id": 70,
+      "state": "SAVING",
+      "errorCode": null,
+      "attempts": 0,
+      "occurredAt": 1790950150644
+    },
+    {
+      "id": 71,
+      "state": "RUNNING",
+      "errorCode": "ARTIFACT_SAVE_FAILED",
+      "attempts": 1,
+      "occurredAt": 1790950154444
+    },
+    {
+      "id": 72,
+      "state": "SAVING",
+      "errorCode": null,
+      "attempts": 1,
+      "occurredAt": 1790950158774
+    },
+    {
+      "id": 73,
+      "state": "RUNNING",
+      "errorCode": "ARTIFACT_SAVE_FAILED",
+      "attempts": 2,
+      "occurredAt": 1790950160816
+    },
+    {
+      "id": 74,
+      "state": "SAVING",
+      "errorCode": null,
+      "attempts": 2,
+      "occurredAt": 1790950169261
+    },
+    {
+      "id": 75,
+      "state": "RUNNING",
+      "errorCode": "ARTIFACT_SAVE_FAILED",
+      "attempts": 3,
+      "occurredAt": 1790950171301
+    },
+    {
+      "id": 84,
+      "state": "SAVING",
+      "errorCode": null,
+      "attempts": 3,
+      "occurredAt": 1790950187942
+    },
+    {
+      "id": 86,
+      "state": "RUNNING",
+      "errorCode": "ARTIFACT_SAVE_FAILED",
+      "attempts": 4,
+      "occurredAt": 1790950190067
+    },
+    {
+      "id": 92,
+      "state": "SAVING",
+      "errorCode": null,
+      "attempts": 4,
+      "occurredAt": 1790950224066
+    },
+    {
+      "id": 93,
+      "state": "SUCCEEDED",
+      "errorCode": null,
+      "attempts": 0,
+      "occurredAt": 1790950227086
+    }
+  ]
+}

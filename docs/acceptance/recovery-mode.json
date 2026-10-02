@@ -1,0 +1,62 @@
+{
+  "status": "PASS_RECOVERY_MODE_ENGINEERING_VALIDATION",
+  "checkedAtUtc": "2026-10-02T12:54:30.5982429Z",
+  "backendRegression": {
+    "skipped": 0,
+    "errors": 0,
+    "failures": 0,
+    "tests": 104
+  },
+  "frontendRegression": {
+    "tests": 54,
+    "failures": 0
+  },
+  "productionBuild": true,
+  "launcherSyntaxValidated": true,
+  "runtime": {
+    "paidBudgetUnchanged": {
+      "usedTasks": 4,
+      "reservedCostCny": 10.0,
+      "reservationCount": 4
+    },
+    "realT2vState": "SUCCEEDED",
+    "newStoryboardPaidEnabled": false,
+    "originalVideoRecoveryEnabled": true,
+    "existingUnknownTasks": [
+      {
+        "id": "1bc020e1-897e-4417-b1f2-a8e2ec6e1f1f",
+        "state": "SUBMISSION_UNKNOWN",
+        "recoveryAvailable": true,
+        "remoteId": null
+      },
+      {
+        "id": "9d37de87-7202-46ba-84fe-f652b918f587",
+        "state": "SUBMISSION_UNKNOWN",
+        "recoveryAvailable": true,
+        "remoteId": null
+      },
+      {
+        "id": "8fdbcd21-acd6-41ee-b47d-c755eb5af35a",
+        "state": "SUBMISSION_UNKNOWN",
+        "recoveryAvailable": true,
+        "remoteId": null
+      }
+    ],
+    "newVideoPaidEnabled": false,
+    "realT2vArchiveHashVerified": true,
+    "newGenerationProvider": "mock"
+  },
+  "paidGenerationRequestsDuringThisWork": 0,
+  "stillIncomplete": [
+    "supplier outcome/requestId for three historical unknown submissions",
+    "real image-to-video artifacts and real multi-shot final film",
+    "final supplier bill and human quality evaluation"
+  ],
+  "lookupMaterial": "siliconflow-support-request.md",
+  "browserVerification": {
+    "pageReloaded": true,
+    "noProviderRequestIdEntered": true,
+    "unknownTaskAndReconcileFormVisible": true,
+    "screenshot": "recovery-mode-workbench.png"
+  }
+}

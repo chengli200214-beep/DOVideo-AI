@@ -1,0 +1,94 @@
+[
+  {
+    "sequence": 1,
+    "localTaskId": "52ed4cb5-946e-4cfc-ab71-12055733367c",
+    "remoteId": "cgt-20261002220639-wznj8",
+    "model": "doubao-seedance-2-0-mini-260615",
+    "status": "succeeded",
+    "errorCode": null,
+    "usage": {
+      "completion_tokens": 108900,
+      "total_tokens": 108900
+    },
+    "resolution": "720p",
+    "duration": 5,
+    "ratio": "9:16",
+    "framespersecond": 24,
+    "generateAudio": false,
+    "seed": 7988,
+    "outputFormat": "mp4",
+    "createdAt": 1790950005,
+    "updatedAt": 1790950169,
+    "artifactHost": "ark-acg-cn-beijing.tos-cn-beijing.volces.com",
+    "checkedAtUtc": "2026-10-02T14:18:21.6217427Z"
+  },
+  {
+    "sequence": 2,
+    "localTaskId": "cfe8cc49-877f-4f7b-a7ec-b4a6c803fca2",
+    "remoteId": "cgt-20261002220732-58xj6",
+    "model": "doubao-seedance-2-0-mini-260615",
+    "status": "succeeded",
+    "errorCode": null,
+    "usage": {
+      "completion_tokens": 108900,
+      "total_tokens": 108900
+    },
+    "resolution": "720p",
+    "duration": 5,
+    "ratio": "9:16",
+    "framespersecond": 24,
+    "generateAudio": false,
+    "seed": 64011,
+    "outputFormat": "mp4",
+    "createdAt": 1790950053,
+    "updatedAt": 1790950149,
+    "artifactHost": "ark-acg-cn-beijing.tos-cn-beijing.volces.com",
+    "checkedAtUtc": "2026-10-02T14:18:21.7821523Z"
+  },
+  {
+    "sequence": 3,
+    "localTaskId": "88a00086-1549-40af-aaf9-02b6b702b299",
+    "remoteId": "cgt-20261002220733-b9m9f",
+    "model": "doubao-seedance-2-0-mini-260615",
+    "status": "succeeded",
+    "errorCode": null,
+    "usage": {
+      "completion_tokens": 108900,
+      "total_tokens": 108900
+    },
+    "resolution": "720p",
+    "duration": 5,
+    "ratio": "9:16",
+    "framespersecond": 24,
+    "generateAudio": false,
+    "seed": 75499,
+    "outputFormat": "mp4",
+    "createdAt": 1790950053,
+    "updatedAt": 1790950172,
+    "artifactHost": "ark-acg-cn-beijing.tos-cn-beijing.volces.com",
+    "checkedAtUtc": "2026-10-02T14:18:21.9558028Z"
+  },
+  {
+    "sequence": 0,
+    "localTaskId": "834e4197-363a-4d2e-816c-c64198a3e855",
+    "remoteId": "cgt-20261002221512-7mzcc",
+    "model": "doubao-seedance-2-0-mini-260615",
+    "status": "succeeded",
+    "errorCode": null,
+    "usage": {
+      "completion_tokens": 108900,
+      "total_tokens": 108900
+    },
+    "resolution": "720p",
+    "duration": 5,
+    "ratio": "9:16",
+    "framespersecond": 24,
+    "generateAudio": false,
+    "seed": 42,
+    "outputFormat": "mp4",
+    "createdAt": 1790950512,
+    "updatedAt": 1790950597,
+    "artifactHost": "ark-acg-cn-beijing.tos-cn-beijing.volces.com",
+    "checkedAtUtc": "2026-10-02T14:18:22.1381630Z"
+  }
+]

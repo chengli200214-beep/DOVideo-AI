@@ -1,0 +1,177 @@
+{
+  "status": "PARTIAL_REQUIRES_RECONCILIATION",
+  "recordedAtUtc": "2026-10-02T10:38:56.64824Z",
+  "scope": "one real text-to-video succeeded; three image-to-video submissions unknown; no real multi-shot film",
+  "authorization": {
+    "budgetLimitCny": 10,
+    "models": [
+      "Wan-AI/Wan2.2-T2V-A14B",
+      "Wan-AI/Wan2.2-I2V-A14B"
+    ],
+    "maxSubmissions": 4
+  },
+  "budgetAudit": {
+    "usedTasks": 4,
+    "authorizationId": "siliconflow-real-6605b032eefd43408dbc5b8ec8472a63",
+    "reservedCostCny": 10.0,
+    "reservationCount": 4
+  },
+  "textToVideo": {
+    "id": "d6fcca02-e0c3-400c-a74c-2b3190f3d2ee",
+    "provider": "siliconflow",
+    "model": "Wan-AI/Wan2.2-T2V-A14B",
+    "state": "SUCCEEDED",
+    "remoteId": "jr60ictlll02",
+    "artifactKey": "generated/2/d6fcca02-e0c3-400c-a74c-2b3190f3d2ee/video.mp4",
+    "artifactSize": 311942,
+    "artifactSha256": "836ec73f2c6d2f44dbe586f2095e54110d86cb510ad176461d8fb47eacda4269",
+    "errorCode": null,
+    "recoverable": false,
+    "attempts": 0,
+    "createdAt": 1790936487162,
+    "updatedAt": 1790936789494
+  },
+  "media": {
+    "durationSeconds": 5.0625,
+    "downloadSha256Verified": true,
+    "codec": "h264",
+    "height": 1280,
+    "width": 720,
+    "file": "siliconflow-t2v.mp4"
+  },
+  "archiveRecovery": {
+    "verifiedOutputHost": "s3.6scloud.com",
+    "cause": "actual output host differed from initial exact allowlist",
+    "action": "retry query/archive of original remote task; no new video submission",
+    "initialError": "ARTIFACT_SAVE_FAILED"
+  },
+  "restartAndReplay": {
+    "state": "RUNNING",
+    "sameRemoteId": true,
+    "reused": true,
+    "localTaskId": "d6fcca02-e0c3-400c-a74c-2b3190f3d2ee",
+    "sameLocalTask": true,
+    "verifiedAfterApplicationRestart": true,
+    "remoteId": "jr60ictlll02"
+  },
+  "imageToVideo": [
+    {
+      "id": "1bc020e1-897e-4417-b1f2-a8e2ec6e1f1f",
+      "provider": "siliconflow",
+      "model": "Wan-AI/Wan2.2-I2V-A14B",
+      "state": "SUBMISSION_UNKNOWN",
+      "remoteId": null,
+      "artifactKey": null,
+      "artifactSize": null,
+      "artifactSha256": null,
+      "errorCode": "SUBMISSION_UNKNOWN",
+      "recoverable": false,
+      "attempts": 0,
+      "createdAt": 1790936894468,
+      "updatedAt": 1790936896480
+    },
+    {
+      "id": "9d37de87-7202-46ba-84fe-f652b918f587",
+      "provider": "siliconflow",
+      "model": "Wan-AI/Wan2.2-I2V-A14B",
+      "state": "SUBMISSION_UNKNOWN",
+      "remoteId": null,
+      "artifactKey": null,
+      "artifactSize": null,
+      "artifactSha256": null,
+      "errorCode": "SUBMISSION_UNKNOWN",
+      "recoverable": false,
+      "attempts": 0,
+      "createdAt": 1790936894445,
+      "updatedAt": 1790936896037
+    },
+    {
+      "id": "8fdbcd21-acd6-41ee-b47d-c755eb5af35a",
+      "provider": "siliconflow",
+      "model": "Wan-AI/Wan2.2-I2V-A14B",
+      "state": "SUBMISSION_UNKNOWN",
+      "remoteId": null,
+      "artifactKey": null,
+      "artifactSize": null,
+      "artifactSha256": null,
+      "errorCode": "SUBMISSION_UNKNOWN",
+      "recoverable": false,
+      "attempts": 0,
+      "createdAt": 1790936894458,
+      "updatedAt": 1790936896199
+    }
+  ],
+  "referenceLineage": "private PNG extracted at 1 second from the real T2V video; synthetic bottle, not an uploaded real product photo",
+  "storyboard": {
+    "projectId": "a35ff1eb-f819-48c5-849a-ed7078b4c02b",
+    "origin": "MANUAL",
+    "snapshot": "siliconflow-real-storyboard.json",
+    "confirmed": true,
+    "source": "DeepSeek MODEL revision 2",
+    "revision": 3
+  },
+  "billingObservation": {
+    "unknownSubmissionsBilling": "not established; absent rows do not prove non-acceptance or no future charge",
+    "finalInvoice": false,
+    "observedAtUtc": "2026-10-02T10:38:56.64824Z",
+    "source": "authenticated SiliconFlow billing page, read-only",
+    "displayedVideos": 1,
+    "displayedRows": 1,
+    "displayedTotalCny": 2,
+    "displayedModel": "Wan-AI/Wan2.2-T2V-A14B"
+  },
+  "diagnostics": {
+    "skipped": 0,
+    "failures": 0,
+    "historicalUnknownCause": "not retained; no HTTP code or raw response available",
+    "externalModelCallsDuringTests": 0,
+    "backendRegressionTests": 101,
+    "newSafeCategories": true,
+    "errors": 0,
+    "targetedTests": 17
+  },
+  "safety": {
+    "paidGateClosed": true,
+    "unknownReservationsReleased": false,
+    "automaticResubmission": false,
+    "additionalPaidSubmissions": 0,
+    "credentialInVersionControl": false
+  },
+  "unresolved": [
+    "obtain original provider requestIds for the three unknown tasks before reconciliation",
+    "complete real image-to-video artifacts and real multi-shot film only after unknown outcomes are resolved and any new paid submissions separately authorized",
+    "supplier billing reconciliation and human quality evaluation"
+  ],
+  "finalRestartVerification": {
+    "provider": "mock",
+    "checkedStates": [
+      {
+        "id": "d6fcca02-e0c3-400c-a74c-2b3190f3d2ee",
+        "state": "SUCCEEDED",
+        "remoteId": "jr60ictlll02",
+        "errorCode": null
+      },
+      {
+        "id": "1bc020e1-897e-4417-b1f2-a8e2ec6e1f1f",
+        "state": "SUBMISSION_UNKNOWN",
+        "remoteId": null,
+        "errorCode": "SUBMISSION_UNKNOWN"
+      },
+      {
+        "id": "9d37de87-7202-46ba-84fe-f652b918f587",
+        "state": "SUBMISSION_UNKNOWN",
+        "remoteId": null,
+        "errorCode": "SUBMISSION_UNKNOWN"
+      },
+      {
+        "id": "8fdbcd21-acd6-41ee-b47d-c755eb5af35a",
+        "state": "SUBMISSION_UNKNOWN",
+        "remoteId": null,
+        "errorCode": "SUBMISSION_UNKNOWN"
+      }
+    ],
+    "originalStatesPreserved": true,
+    "paidGateClosed": true
+  },
+  "workbenchScreenshot": "siliconflow-real-workbench.png"
+}

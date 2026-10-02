@@ -1,0 +1,83 @@
+[
+  {
+    "sequence": 1,
+    "title": "整体外观",
+    "versionId": "35df4463-f7c5-4e13-8f03-3912af70bf9e",
+    "taskId": "52ed4cb5-946e-4cfc-ab71-12055733367c",
+    "remoteId": "cgt-20261002220639-wznj8",
+    "file": "docs/acceptance/seedance-shot-1.mp4",
+    "size": 1809520,
+    "sha256": "c201c7c00ae934f58ae83bef7a330082b2bf1d87843d0d87d6f2d2078b99aa2b",
+    "privateMinioDownloadHashVerified": true,
+    "probe": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "codec_name": "h264",
+          "codec_type": "video",
+          "width": 720,
+          "height": 1280,
+          "r_frame_rate": "24/1"
+        }
+      ],
+      "format": {
+        "duration": "5.041667"
+      }
+    }
+  },
+  {
+    "sequence": 2,
+    "title": "拿取放入",
+    "versionId": "36eca555-a536-4e23-8434-ccd02f6ac9be",
+    "taskId": "cfe8cc49-877f-4f7b-a7ec-b4a6c803fca2",
+    "remoteId": "cgt-20261002220732-58xj6",
+    "file": "docs/acceptance/seedance-shot-2.mp4",
+    "size": 2904912,
+    "sha256": "6fd28f4a5d7c09c80e9b312b248553b04d4bca47ca2788d26a9795be3855e150",
+    "privateMinioDownloadHashVerified": true,
+    "probe": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "codec_name": "h264",
+          "codec_type": "video",
+          "width": 720,
+          "height": 1280,
+          "r_frame_rate": "24/1"
+        }
+      ],
+      "format": {
+        "duration": "5.041667"
+      }
+    }
+  },
+  {
+    "sequence": 3,
+    "title": "桌面静置",
+    "versionId": "650941df-69a5-47af-8836-be141c891b0e",
+    "taskId": "88a00086-1549-40af-aaf9-02b6b702b299",
+    "remoteId": "cgt-20261002220733-b9m9f",
+    "file": "docs/acceptance/seedance-shot-3.mp4",
+    "size": 1903290,
+    "sha256": "3fd699f27a25e1b3a00190d10ef48040eacbdd65ea9c1790d3237a5e46f58a34",
+    "privateMinioDownloadHashVerified": true,
+    "probe": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "codec_name": "h264",
+          "codec_type": "video",
+          "width": 720,
+          "height": 1280,
+          "r_frame_rate": "24/1"
+        }
+      ],
+      "format": {
+        "duration": "5.041667"
+      }
+    }
+  }
+]

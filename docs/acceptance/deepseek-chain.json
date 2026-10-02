@@ -1,0 +1,154 @@
+{
+  "scope": "Real DeepSeek draft copied into a separate Mock-only film workflow; no additional model HTTP generation",
+  "evaluation": {
+    "totalVersions": 3,
+    "stateCounts": {
+      "QUEUED": 0,
+      "SUBMITTING": 0,
+      "SUBMISSION_UNKNOWN": 0,
+      "RUNNING": 0,
+      "SAVING": 0,
+      "SUCCEEDED": 3,
+      "FAILED": 0
+    },
+    "succeeded": 3,
+    "reviewed": 0,
+    "usable": 0,
+    "unreviewed": 3,
+    "mockVersions": 3,
+    "unknownCostTasks": 0,
+    "unsettledCostTasks": 0,
+    "knownActualCost": 0,
+    "reservedCost": 0.0,
+    "successRate": 1.0,
+    "meanHumanScore": null,
+    "timedSuccesses": 3,
+    "medianCompletedMs": 4392.0,
+    "costPerUsableVideo": null
+  },
+  "realVideoCalls": 0,
+  "humanQualityReviews": 0,
+  "recordedAtUtc": "2026-10-02T10:14:07.0374936Z",
+  "shots": {
+    "versions": [
+      {
+        "id": "292aa15d-4964-430c-b55d-e3c3254d6336",
+        "sha256": "eda72b1fd3069b1aec207f4bad4e748583462dc188f6818518c43c2f5bd07a8a",
+        "shotId": "76ce97cb-f468-4df1-ba94-55e12603bae9",
+        "taskId": "65f5e117-1b70-469c-97d8-1fca77b3d5ab",
+        "bytes": 4441
+      },
+      {
+        "id": "a4f327f5-0658-452a-a758-1c0d75dda35c",
+        "sha256": "eda72b1fd3069b1aec207f4bad4e748583462dc188f6818518c43c2f5bd07a8a",
+        "shotId": "89da3a21-6fcf-4570-b837-fce1bb29fea5",
+        "taskId": "360b561f-053d-4c86-a4a1-bceb23b8fbcc",
+        "bytes": 4441
+      },
+      {
+        "id": "011128cc-14e3-47e4-b8e7-cc7ea42f4cb0",
+        "sha256": "eda72b1fd3069b1aec207f4bad4e748583462dc188f6818518c43c2f5bd07a8a",
+        "shotId": "a3ed341b-75f3-49d8-9120-9638c1ed7bff",
+        "taskId": "45eb361c-4261-4015-bf8c-afcf2697e379",
+        "bytes": 4441
+      }
+    ],
+    "providers": [
+      "mock"
+    ],
+    "succeeded": 3,
+    "total": 3
+  },
+  "source": {
+    "acceptance": "deepseek-real.json",
+    "origin": "MODEL",
+    "projectId": "a35ff1eb-f819-48c5-849a-ed7078b4c02b",
+    "revision": 2
+  },
+  "projectId": "c1f299c2-8a1b-43f3-a3bf-2039ebf36833",
+  "additionalDeepSeekCalls": 0,
+  "film": {
+    "videoDurationSeconds": 3.0,
+    "state": "SUCCEEDED",
+    "width": 720,
+    "audioCodec": "aac",
+    "hashMatchesDownload": true,
+    "sha256": "3b8edacfd1eed0ee1425930dc94df98a1575848976352234fe0d8be5d17ae44c",
+    "metadata": {
+      "output": {
+        "hasAudio": true,
+        "durationSeconds": 3.021333,
+        "width": 720,
+        "height": 1280,
+        "videoCodec": "h264"
+      },
+      "audioPolicy": "preserve available source audio; pad missing audio with silence",
+      "renderer": "ffmpeg-h264-aac-v1",
+      "inputs": [
+        {
+          "durationSeconds": 1.0,
+          "versionId": "a4f327f5-0658-452a-a758-1c0d75dda35c",
+          "source": {
+            "hasAudio": false,
+            "durationSeconds": 1.0,
+            "width": 320,
+            "height": 180,
+            "videoCodec": "mpeg4"
+          }
+        },
+        {
+          "durationSeconds": 1.0,
+          "versionId": "011128cc-14e3-47e4-b8e7-cc7ea42f4cb0",
+          "source": {
+            "hasAudio": false,
+            "durationSeconds": 1.0,
+            "width": 320,
+            "height": 180,
+            "videoCodec": "mpeg4"
+          }
+        },
+        {
+          "durationSeconds": 1.0,
+          "versionId": "292aa15d-4964-430c-b55d-e3c3254d6336",
+          "source": {
+            "hasAudio": false,
+            "durationSeconds": 1.0,
+            "width": 320,
+            "height": 180,
+            "videoCodec": "mpeg4"
+          }
+        }
+      ],
+      "burnCaptions": true
+    },
+    "containerDurationSeconds": 3.021333,
+    "captionsBurned": true,
+    "artifact": "deepseek-chain-mock-film.mp4",
+    "id": "77d79343-8efa-4556-b423-a5b978176a80",
+    "height": 1280,
+    "bytes": 16791,
+    "videoCodec": "h264"
+  },
+  "limitations": [
+    "Mock clips are fixed one-second blue samples, not generated product imagery",
+    "15-second script intent does not force Mock duration; actual composed video is 3 seconds",
+    "No TTS; narration text is retained but audio is silence",
+    "No human scores invented; three versions remain unreviewed",
+    "SiliconFlow video calls separately authorized but waiting for API credentials"
+  ],
+  "copiedDraft": {
+    "note": "Imported existing real-model output; no new DeepSeek call; source project remains available for later real video validation",
+    "origin": "USER",
+    "revision": 2
+  },
+  "result": "PASS",
+  "browser": {
+    "result": "PASS",
+    "projectLoaded": true,
+    "threeArchivedMockVersionsVisible": true,
+    "filmPreviewLoaded": true,
+    "downloadControlVisible": true,
+    "humanReviews": 0,
+    "screenshot": "deepseek-chain-workbench.png"
+  }
+}
