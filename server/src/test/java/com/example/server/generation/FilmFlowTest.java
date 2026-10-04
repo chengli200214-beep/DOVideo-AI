@@ -90,4 +90,69 @@ class FilmFlowTest {
         assertEquals("SUCCEEDED",service.get(1,project(),job.id()).task().state()); assertEquals(claimed.snapshotJson(),repository.byId(job.id()).snapshotJson());
         verify(flow.provider,times(3)).submit(any(),any());
     }
+    @Test void editingCaptionsReusesAllVideosAndFreezesCurrentTextWithoutChangingEarlierFilms() throws Exception {
+        var before=service.select(1,project(),selection(0));
+        var originalFilm=service.submit(1,project(),"original",new FilmService.SubmitInput(1,true)).task();
+        var originalShots=shots.project.revision().draft().shots();
+        var first=originalShots.getFirst();
+        var changed=new ArrayList<>(originalShots);
+        changed.set(0,new StoryboardDraft.Shot(first.id(),first.sequence(),"Corrected title",first.subject(),first.action(),first.setting(),
+                first.camera(),first.referenceAssetId(),first.desiredDurationSeconds(),first.frameRatio(),"Corrected caption","Corrected narration",
+                first.prompt(),first.promptVersion(),first.parameters()));
+        var draft=new StoryboardDraft(shots.project.revision().draft().script(),changed);
+        shots.storyboard.service.edit(1,project(),1,draft);
+        shots.storyboard.service.confirm(1,project(),2);
+        assertTrue(shots.service.overview(1,project()).versions().stream().allMatch(ShotGenerationService.Version::compatible));
+
+        var updated=service.select(1,project(),new FilmService.SelectionInput(2,1,versions.stream().map(ShotGenerationService.Version::id).toList()));
+        var clip=updated.snapshot().clips().getFirst();
+        assertEquals("Corrected title",clip.title()); assertEquals("Corrected caption",clip.caption()); assertEquals("Corrected narration",clip.narration());
+        assertEquals(before.snapshot().clips().stream().map(FilmSpec.Clip::taskId).toList(),updated.snapshot().clips().stream().map(FilmSpec.Clip::taskId).toList());
+        assertEquals(before.snapshot(),service.get(1,project(),originalFilm.id()).input());
+        assertEquals(first.caption(),flow.json.readValue(shots.service.overview(1,project()).versions().stream()
+                .filter(v->v.shotId().equals(first.id())).findFirst().orElseThrow().shotJson(),StoryboardDraft.Shot.class).caption());
+        var revisedFilm=service.submit(1,project(),"corrected-captions",new FilmService.SubmitInput(2,true)).task();
+        worker.process(revisedFilm.id());
+        assertEquals("SUCCEEDED",service.get(1,project(),revisedFilm.id()).task().state());
+        assertEquals(3,shots.count("generation_tasks")); assertEquals(3,shots.service.overview(1,project()).budget().usedVersions());
+        verify(flow.provider,times(3)).submit(any(),any());
+    }
+    @Test void changingOnePromptRegeneratesOnlyThatShotAndReusesOtherRevisionClips() throws Exception {
+        var originalDraft=shots.project.revision().draft();
+        var firstShot=originalDraft.shots().getFirst();
+        shots.storyboard.service.edit(1,project(),1,shots.storyboard.change(originalDraft,"New camera motion and product closeup"));
+        shots.storyboard.service.confirm(1,project(),2);
+        var current=shots.service.overview(1,project()).versions();
+        assertEquals(2,current.stream().filter(ShotGenerationService.Version::compatible).count());
+        assertFalse(current.stream().filter(v->v.shotId().equals(firstShot.id())).findFirst().orElseThrow().compatible());
+        assertThrows(BusinessException.class,()->service.select(1,project(),new FilmService.SelectionInput(2,0,versions.stream().map(ShotGenerationService.Version::id).toList())));
+
+        var generated=shots.service.submit(1,project(),"edited-shot",new ShotGenerationService.SubmitInput(2,List.of(firstShot.id()),"REGENERATE"));
+        assertEquals(1,generated.versions().size());
+        var replacement=generated.versions().getFirst(); assertTrue(replacement.compatible()); assertEquals(2,replacement.revision());
+        shots.complete(replacement.task().id());
+        var selected=versions.stream().map(v->v.shotId().equals(firstShot.id())?replacement.id():v.id()).toList();
+        var filmSelection=service.select(1,project(),new FilmService.SelectionInput(2,0,selected));
+        var job=service.submit(1,project(),"partially-regenerated",new FilmService.SubmitInput(filmSelection.number(),true)).task();
+        worker.process(job.id());
+        assertEquals("SUCCEEDED",service.get(1,project(),job.id()).task().state());
+        assertEquals(4,shots.count("generation_tasks")); assertEquals(4,shots.service.overview(1,project()).budget().usedVersions());
+        verify(flow.provider,times(4)).submit(any(),any());
+        assertEquals(originalDraft,shots.storyboard.service.history(1,project()).revisions().getFirst().draft());
+    }
+    @Test void seedNegativePromptAndReferenceChangesInvalidateOldVideoSelection() throws Exception {
+        var original=shots.project.revision().draft(); var first=original.shots().getFirst();
+        var reference=flow.assets.inline(1,"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1ZkAAAAASUVORK5CYII=");
+        for(int i=0;i<3;i++) {
+            var changed=new ArrayList<>(original.shots());
+            var parameters=i==0?new StoryboardDraft.Parameters(null,77L):i==1?new StoryboardDraft.Parameters("avoid blur",null):first.parameters();
+            changed.set(0,new StoryboardDraft.Shot(first.id(),first.sequence(),first.title(),first.subject(),first.action(),first.setting(),first.camera(),
+                    i==2?reference.id():first.referenceAssetId(),first.desiredDurationSeconds(),first.frameRatio(),first.caption(),first.narration(),first.prompt(),first.promptVersion(),parameters));
+            shots.storyboard.service.edit(1,project(),i+1,new StoryboardDraft(original.script(),changed));
+            int revision=i+2; shots.storyboard.service.confirm(1,project(),revision);
+            assertFalse(shots.service.overview(1,project()).versions().stream().filter(v->v.shotId().equals(first.id())).findFirst().orElseThrow().compatible());
+            assertThrows(BusinessException.class,()->service.select(1,project(),new FilmService.SelectionInput(revision,0,versions.stream().map(ShotGenerationService.Version::id).toList())));
+        }
+        assertEquals(3,shots.count("generation_tasks")); verify(flow.provider,times(3)).submit(any(),any());
+    }
 }

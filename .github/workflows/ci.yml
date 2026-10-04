@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   backend:
@@ -16,6 +17,7 @@ jobs:
         working-directory: .
         run: |
           bash -n scripts/dev-up.sh
+          bash -n scripts/test-generation-infrastructure.sh
           docker compose --env-file .env.example config --quiet
       - uses: actions/setup-java@v4
         with:
@@ -39,6 +41,92 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+        env:
+          VITE_AIGC_ONLY: "true"
+          VITE_API_BASE_URL: "/"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aigc-client-dist
+          path: client/dist/
+          retention-days: 7
+
+  standalone:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - uses: actions/download-artifact@v4
+        with:
+          name: aigc-client-dist
+          path: client/dist/
+      - name: Package standalone AIGC app with the tested frontend
+        working-directory: server
+        run: ./mvnw -B -Paigc-app -DskipTests package
+      - name: Verify executable entrypoint and bundled workbench
+        run: |
+          python3 - <<'PY'
+          import pathlib, zipfile
+          jars = list(pathlib.Path("server/target").glob("server-*.jar"))
+          assert len(jars) == 1, "Expected one packaged application"
+          with zipfile.ZipFile(jars[0]) as jar:
+              names = set(jar.namelist())
+              manifest = jar.read("META-INF/MANIFEST.MF").decode()
+              assert "Start-Class: com.example.aigc.AigcApplication" in manifest
+              assert "BOOT-INF/classes/static/index.html" in names
+              assert any(name.startswith("BOOT-INF/classes/static/assets/") and name.endswith(".js") for name in names)
+              assert any(name.startswith("BOOT-INF/classes/static/assets/") and name.endswith(".css") for name in names)
+          print("Standalone entrypoint and bundled JS/CSS workbench verified")
+          PY
+
+  infrastructure:
+    needs: backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Install video composition tools and Chinese caption font
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-cjk
+      - name: Verify isolated MySQL, Redis, MinIO and FFmpeg flow
+        # Backend already ran the full unit suite; retain the queue/recovery regression before the real IT.
+        run: bash scripts/test-generation-infrastructure.sh -Dtest=GenerationSchedulingRecoveryTest
+      - name: Save infrastructure acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generation-infrastructure-results
+          path: |
+            server/target/failsafe-reports/
+            server/target/generation-infrastructure-acceptance.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  windows-startup:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        shell: [powershell, pwsh]
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Docker readiness and project startup without real Docker calls
+        run: |
+          ./scripts/test-docker-readiness.ps1
+          ./scripts/test-aigc-startup.ps1
 
   extension:
     runs-on: ubuntu-latest

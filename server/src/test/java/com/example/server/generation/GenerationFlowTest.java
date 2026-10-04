@@ -40,7 +40,7 @@ class GenerationFlowTest {
         JdbcDataSource data = new JdbcDataSource();
         data.setURL("jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=MySQL;DB_CLOSE_DELAY=-1");
         jdbc = new JdbcTemplate(data);
-        for (String migration : List.of("V4__create_generation_tasks.sql", "V5__generation_inputs_and_trace.sql", "V6__creative_storyboards.sql", "V7__shot_generations.sql", "V8__films_and_reviews.sql", "V9__deepseek_storyboard_planning.sql")) {
+        for (String migration : List.of("V4__create_generation_tasks.sql", "V5__generation_inputs_and_trace.sql", "V6__creative_storyboards.sql", "V7__shot_generations.sql", "V8__films_and_reviews.sql", "V9__deepseek_storyboard_planning.sql", "V10__generation_poll_deadlines.sql", "V11__project_library_and_asset_cleanup.sql")) {
         try (var input = new ClassPathResource("db/migration/" + migration).getInputStream(); var connection = data.getConnection()) {
             // H2 supports the MySQL DDL except per-column ASCII collation.
             org.springframework.jdbc.datasource.init.ScriptUtils.executeSqlScript(connection,

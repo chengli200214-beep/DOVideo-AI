@@ -15,7 +15,7 @@ import static org.mockito.Mockito.*;
 class GenerationArtifactStoreTest {
     GenerationTask task = new GenerationTask("task-id", 7, "hash", "mock", "mock-video", "{}",
             GenerationTask.State.SAVING, "mock-task-id", "mock://sample.mp4", null, null, null,
-            null, 0, false, 0, null, 0, 0, 0);
+            null, 0, false, 0, null, 0, 0, 0, null, null);
 
     @Test
     void savesActualPlayableFixtureThroughMinioSdkWithStableKeyAndChecksum() throws Exception {

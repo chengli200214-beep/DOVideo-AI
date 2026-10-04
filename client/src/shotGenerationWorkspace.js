@@ -1,28 +1,35 @@
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { createSubmissionIntent, generationIsActive } from './generationWorkspace.js'
+import { createReadPolling } from './readPolling.js'
 
 export function initialShotIds(project, overview) {
-  const revision = project?.revision.number
-  const generated = new Set((overview?.versions || []).filter(item => item.revision === revision).map(item => item.shotId))
+  const generated = new Set((overview?.versions || []).map(item => item.shotId))
   return (project?.revision.draft.shots || []).filter(shot => !generated.has(shot.id)).map(shot => shot.id)
 }
+export function initialShotsAvailable(ids, quote) {
+  return ids.length > 0 && ids.every(id => quote?.shots.some(shot => shot.shotId === id && shot.available))
+}
+export function canRegenerateShot(version, project, versions) {
+  if (!project?.revision.draft.shots.some(shot => shot.id === version.shotId)) return false
+  const history = (versions || []).filter(item => item.shotId === version.shotId)
+  if (history.some(item => generationIsActive(item.task.state) || item.task.state === 'SUBMISSION_UNKNOWN')) return false
+  const latest = [...history].sort((a, b) => b.revision - a.revision || b.version - a.version)[0]
+  return latest?.id === version.id && ['SUCCEEDED', 'FAILED'].includes(version.task.state)
+}
 export function useShotGenerationWorkspace({ user, project, dirty, request, captureSession, storage,
-  newKey, digest, schedule = setTimeout, cancel = clearTimeout }) {
+  newKey, digest, schedule = setTimeout, cancel = clearTimeout, eventTarget }) {
   const overview = ref(null), quote = ref(null), error = ref(''), notice = ref(''), busy = ref(false), loading = ref(false)
   const pendingInput = ref(null), artifact = ref(null)
-  let epoch = 0, reads = 0, timer = null, intent = null
-  const cleanConfirmed = computed(() => !!project.value && !dirty.value && project.value.status === 'CONFIRMED'
+  let epoch = 0, reads = 0, intent = null
+  const cleanConfirmed = computed(() => !!project.value && !project.value.archived && !dirty.value && project.value.status === 'CONFIRMED'
     && project.value.confirmedRevision === project.value.revision.number)
   const initialIds = computed(() => initialShotIds(project.value, overview.value))
   function guard() {
     const version = epoch, id = project.value?.id, owner = user.value?.id, session = captureSession()
     return () => version === epoch && id === project.value?.id && owner === user.value?.id && !!owner && session()
   }
-  function stopTimer() { if (timer !== null) cancel(timer); timer = null }
-  function poll() {
-    stopTimer()
-    if (overview.value?.versions.some(item => generationIsActive(item.task.state))) timer = schedule(() => { timer = null; refresh() }, 5000)
-  }
+  const polling = createReadPolling({ refresh, active: () => overview.value?.versions.some(item => generationIsActive(item.task.state)), allowed: () => !!user.value && !!project.value, schedule, cancel, eventTarget })
+  const stopTimer = polling.stop, poll = polling.succeeded
   async function refresh() {
     if (!project.value || !user.value) return
     const current = guard(), sequence = ++reads, id = project.value.id
@@ -31,20 +38,21 @@ export function useShotGenerationWorkspace({ user, project, dirty, request, capt
       const result = await request(`/generation/projects/${id}/generations`)
       if (!current() || sequence !== reads) return
       overview.value = result
+      error.value = ''
       quote.value = null
       if (cleanConfirmed.value) {
         const revision = project.value.revision.number
-        try {
-          const planned = await request(`/generation/projects/${id}/generation-quote?revision=${revision}`)
-          if (current() && sequence === reads) quote.value = planned
-        } catch (failure) { if (current() && sequence === reads) error.value = failure.message }
+        const planned = await request(`/generation/projects/${id}/generation-quote?revision=${revision}`)
+        if (!current() || sequence !== reads) return
+        quote.value = planned
       }
       if (current() && sequence === reads) poll()
-    } catch (failure) { if (current() && sequence === reads) error.value = `状态刷新失败：${failure.message}；请手动刷新` }
+    } catch (failure) { if (current() && sequence === reads) error.value = `状态刷新失败：${failure.message}；${polling.failed(failure) ? '将自动重试查询' : '请手动刷新'}` }
     finally { if (current() && sequence === reads) loading.value = false }
   }
   async function action(work, message) {
     if (busy.value || loading.value || !project.value || !user.value) return
+    if (project.value.archived) { error.value = '项目已归档，请先恢复项目再修改或恢复任务'; return }
     const current = guard()
     reads += 1; busy.value = true; error.value = ''; notice.value = ''; stopTimer()
     try {
@@ -91,7 +99,7 @@ export function useShotGenerationWorkspace({ user, project, dirty, request, capt
     } catch (failure) { if (current()) error.value = failure.message }
   }
   watch(() => [user.value?.id, project.value?.id, project.value?.revision.number, project.value?.status], () => {
-    epoch += 1; reads += 1; stopTimer()
+    epoch += 1; reads += 1; polling.reset()
     overview.value = null; quote.value = null; error.value = ''; notice.value = ''; busy.value = false; loading.value = false
     pendingInput.value = null; artifact.value = null
     intent = user.value && project.value ? createSubmissionIntent({ storage, scope: `shots:${user.value.id}:${project.value.id}`, newKey, digest }) : null
@@ -100,7 +108,7 @@ export function useShotGenerationWorkspace({ user, project, dirty, request, capt
   // Parent confirmation/save can finish after the first overview read. Fetch the
   // quote once the editor becomes clean, rather than requiring a manual refresh.
   watch(cleanConfirmed, value => { if (value) refresh() })
-  onScopeDispose(() => { epoch += 1; stopTimer() })
+  onScopeDispose(() => { epoch += 1; polling.dispose() })
   return { overview, quote, error, notice, busy, loading, pendingInput, artifact, cleanConfirmed, initialIds,
     refresh, configure, submit, retryPending, recover, reconcile, preview }
 }

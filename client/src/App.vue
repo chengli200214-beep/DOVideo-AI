@@ -36,12 +36,12 @@
 
     <main class="main-container">
       <nav class="workspace-switch" aria-label="工作区">
-        <button v-if="!AIGC_ONLY" :class="{ active: workspaceMode === 'analysis' }" @click="workspaceMode = 'analysis'">视频理解</button>
-        <button :class="{ active: workspaceMode === 'generation' }" @click="workspaceMode = 'generation'">AIGC 视频生成</button>
-        <button :class="{ active: workspaceMode === 'storyboard' }" @click="workspaceMode = 'storyboard'">脚本与分镜</button>
+        <button v-if="!AIGC_ONLY" :class="{ active: workspaceMode === 'analysis' }" @click="switchWorkspace('analysis')">视频理解</button>
+        <button :class="{ active: workspaceMode === 'generation' }" @click="switchWorkspace('generation')">AIGC 视频生成</button>
+        <button :class="{ active: workspaceMode === 'storyboard' }" @click="switchWorkspace('storyboard')">脚本与分镜</button>
       </nav>
       <GenerationWorkspace v-if="workspaceMode === 'generation'" :user="currentUser" @login="openAuthModal" />
-      <StoryboardWorkspace v-if="workspaceMode === 'storyboard'" :user="currentUser" @login="openAuthModal" />
+      <StoryboardWorkspace v-if="workspaceMode === 'storyboard'" :user="currentUser" @login="openAuthModal" @draft-state="storyboardDraftState = $event" />
       <section v-show="workspaceMode === 'analysis'" class="hero-section">
         <h1 class="slogan-main">DECODE YOUR VIDEO</h1>
         <p class="slogan-sub">影视重构 · 算力赋能</p>
@@ -561,6 +561,17 @@ const currentUser = ref(null)
 const workspaceParams = new URLSearchParams(window.location.search)
 const AIGC_ONLY = import.meta.env.VITE_AIGC_ONLY === 'true'
 const workspaceMode = ref(workspaceParams.has('storyboard') ? 'storyboard' : workspaceParams.has('generation') ? 'generation' : AIGC_ONLY ? 'storyboard' : 'analysis')
+const storyboardDraftState = ref({ dirty: false, savedLocally: false })
+function switchWorkspace(mode) {
+  if (mode === workspaceMode.value) return
+  if (storyboardDraftState.value.dirty) {
+    const message = storyboardDraftState.value.savedLocally
+      ? '分镜编辑尚未提交服务器，已保存在本机。切换后可重新打开项目恢复，确定切换？'
+      : '分镜编辑尚未保存，切换会丢失当前修改。请先保存到服务器或导出草稿。仍要切换？'
+    if (!window.confirm(message)) return
+  }
+  workspaceMode.value = mode
+}
 const showAuthModal = ref(false)
 const authMode = ref('login')
 const authLoading = ref(false)
@@ -1328,7 +1339,7 @@ const handleOffline = () => {
 
 // 上传中误关标签页会白丢已传分片，这里让浏览器先问一句。
 const handleBeforeUnload = event => {
-  if (!uploading.value) return
+  if (!uploading.value && !storyboardDraftState.value.dirty) return
   event.preventDefault()
   event.returnValue = ''
 }

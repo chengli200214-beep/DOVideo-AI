@@ -1,18 +1,19 @@
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { createSubmissionIntent } from './generationWorkspace.js'
+import { createReadPolling } from './readPolling.js'
 
 export const planningStates = { QUEUED: '等待请求', SUBMITTING: '模型生成中', SUCCEEDED: '新分镜已保存', FAILED: '输出未通过校验', REJECTED: '服务拒绝请求', UNKNOWN: '结果待人工核对', CONFLICT: '版本已变化', BLOCKED: '调用被关闭' }
 const active = task => ['QUEUED', 'SUBMITTING'].includes(task.status)
 
 /** Automatic work is GET-only. Every paid POST requires an explicit click and checked cost acknowledgement. */
-export function useStoryboardModelWorkspace({ user, project, dirty, request, captureSession, storage, newKey, digest, schedule = setTimeout, cancel = clearTimeout }) {
+export function useStoryboardModelWorkspace({ user, project, dirty, request, captureSession, storage, newKey, digest, schedule = setTimeout, cancel = clearTimeout, eventTarget }) {
   const runtime = ref(null), tasks = ref([]), agreed = ref(false), busy = ref(false), loading = ref(false), error = ref(''), notice = ref('')
-  let epoch = 0, sequence = 0, timer = null, intent = null
+  let epoch = 0, sequence = 0, intent = null
   const hasActive = computed(() => tasks.value.some(active))
-  const ready = computed(() => runtime.value?.ready && !dirty.value && agreed.value && !busy.value && !loading.value && !hasActive.value)
+  const ready = computed(() => runtime.value?.ready && !project.value?.archived && !dirty.value && agreed.value && !busy.value && !loading.value && !hasActive.value)
   function guard() { const e = epoch, account = user.value?.id, id = project.value?.id, session = captureSession(); return () => e === epoch && account === user.value?.id && id === project.value?.id && !!account && session() }
-  function stop() { if (timer !== null) cancel(timer); timer = null }
-  function poll() { stop(); if (hasActive.value) timer = schedule(() => { timer = null; refresh() }, 5000) }
+  const polling = createReadPolling({ refresh, active: () => hasActive.value, allowed: () => !!user.value && !!project.value, schedule, cancel, eventTarget })
+  const stop = polling.stop, poll = polling.succeeded
   async function refresh() {
     if (!user.value || !project.value) return
     const current = guard(), seq = ++sequence, base = `/generation/projects/${project.value.id}`
@@ -20,8 +21,8 @@ export function useStoryboardModelWorkspace({ user, project, dirty, request, cap
     try {
       const [config, list] = await Promise.all([request('/generation/storyboard-model/runtime'), request(`${base}/planning`)])
       if (!current() || seq !== sequence) return
-      runtime.value = config; tasks.value = list; poll()
-    } catch (failure) { if (current() && seq === sequence) error.value = failure.message }
+      runtime.value = config; tasks.value = list; error.value = ''; poll()
+    } catch (failure) { if (current() && seq === sequence) error.value = `${failure.message}；${polling.failed(failure) ? '将自动重试查询' : '请手动查询状态'}` }
     finally { if (current() && seq === sequence) loading.value = false }
   }
   async function generate(newCall = false) {
@@ -41,10 +42,10 @@ export function useStoryboardModelWorkspace({ user, project, dirty, request, cap
     finally { if (current()) busy.value = false }
   }
   watch(() => [user.value?.id, project.value?.id, project.value?.revision.number], () => {
-    epoch += 1; sequence += 1; stop(); runtime.value = null; tasks.value = []; agreed.value = false; busy.value = false; loading.value = false; error.value = ''; notice.value = ''
+    epoch += 1; sequence += 1; polling.reset(); runtime.value = null; tasks.value = []; agreed.value = false; busy.value = false; loading.value = false; error.value = ''; notice.value = ''
     intent = user.value && project.value ? createSubmissionIntent({ storage, scope: `planning:${user.value.id}:${project.value.id}`, newKey, digest }) : null
     if (intent) refresh()
   }, { immediate: true })
-  onScopeDispose(() => { epoch += 1; stop() })
+  onScopeDispose(() => { epoch += 1; polling.dispose() })
   return { runtime, tasks, agreed, busy, loading, error, notice, ready, hasActive, refresh, generate }
 }

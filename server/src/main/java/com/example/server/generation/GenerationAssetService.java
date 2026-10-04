@@ -50,7 +50,8 @@ public class GenerationAssetService {
         var existing = find(user, hash);
         if (existing != null) return existing;
         String id = UUID.randomUUID().toString();
-        String key = "generation-inputs/" + user + "/" + hash + (mime.equals("image/png") ? ".png" : ".jpg");
+        // A fresh object name prevents cleanup of an old upload from deleting a later identical upload.
+        String key = "generation-inputs/" + user + "/" + id + (mime.equals("image/png") ? ".png" : ".jpg");
         // The bucket remains private. No public ACL or browser-local data URL is persisted.
         store.putReference(key, bytes, mime);
         try {
@@ -59,6 +60,8 @@ public class GenerationAssetService {
         } catch (DuplicateKeyException race) {
             existing = find(user, hash);
             if (existing == null) throw race;
+            jdbc.update("INSERT INTO generation_asset_cleanup(id,user_id,object_key,state,next_run_at,created_at) VALUES (?,?,?,'PENDING',?,?)",
+                    id, user, key, System.currentTimeMillis(), System.currentTimeMillis());
             return existing;
         }
         return owned(user, id);

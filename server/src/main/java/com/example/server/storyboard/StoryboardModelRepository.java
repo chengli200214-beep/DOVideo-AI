@@ -27,10 +27,11 @@ public class StoryboardModelRepository {
     public List<Task> recent(long user,String project) { return jdbc.query("SELECT * FROM storyboard_model_tasks WHERE user_id=? AND project_id=? ORDER BY created_at DESC,id LIMIT 50",mapper,user,project); }
     public Task create(long user,String project,String key,int expected,String request,StoryboardModelProperties p,long now) {
         return tx.execute(transaction->{
-            var revisions=jdbc.queryForList("SELECT latest_revision FROM creative_projects WHERE id=? AND user_id=? FOR UPDATE",project,user);
+            var revisions=jdbc.queryForList("SELECT latest_revision,archived_at FROM creative_projects WHERE id=? AND user_id=? FOR UPDATE",project,user);
             if (revisions.isEmpty()) throw new NoSuchElementException("创作项目不存在");
             Task prior=byKey(user,key);
             if (prior!=null) { requireSame(prior,project,expected); return prior; }
+            if (revisions.getFirst().get("archived_at") != null) throw conflict("项目已归档，请恢复后再生成");
             if (((Number)revisions.getFirst().get("latest_revision")).intValue()!=expected) throw conflict("分镜版本已变化，请重新载入后生成");
             if (jdbc.queryForObject("SELECT COUNT(*) FROM storyboard_model_tasks WHERE project_id=? AND status IN ('QUEUED','SUBMITTING')",Integer.class,project)>0)
                 throw conflict("该项目已有分镜模型任务，请先查询结果");
@@ -73,6 +74,7 @@ public class StoryboardModelRepository {
             String error=!valid ? output.errorCode()==null ? "VALIDATION_FAILED" : output.errorCode() : fresh ? null : "REVISION_CHANGED";
             Integer saved=valid && fresh ? task.expectedRevision()+1 : null;
             if (saved!=null) {
+                com.example.server.generation.GenerationAssetReferences.attach(jdbc,task.userId(),"REVISION",task.projectId()+":"+saved,draftJson);
                 jdbc.update("INSERT INTO storyboard_revisions VALUES (?,?,?,?,?,?,?,?)",task.projectId(),saved,task.expectedRevision(),"MODEL","deepseek-api-v1",draftJson,validationJson,now);
                 jdbc.update("UPDATE creative_projects SET latest_revision=?,status='DRAFT',confirmed_revision=NULL,updated_at=? WHERE id=?",saved,now,task.projectId());
             }

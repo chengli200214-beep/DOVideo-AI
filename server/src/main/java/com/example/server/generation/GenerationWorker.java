@@ -39,10 +39,17 @@ public class GenerationWorker {
     void process(String id) throws Exception {
         GenerationTask candidate = repository.byId(id);
         if (candidate == null) return;
-        GenerationProvider provider = service.provider(candidate.provider());
-        // Recovery permission never permits a QUEUED task to cross the paid submission boundary.
-        if (candidate.state() == State.QUEUED) provider.requireEnabled();
-        else provider.requireRecoveryEnabled();
+        GenerationProvider provider;
+        try {
+            provider = service.provider(candidate.provider());
+            // Recovery permission never permits a QUEUED task to cross the paid submission boundary.
+            if (candidate.state() == State.QUEUED) provider.requireEnabled();
+            else provider.requireRecoveryEnabled();
+        } catch (RuntimeException unavailable) {
+            // Leave state and spending untouched, but let the following tick see other providers' work.
+            repository.deferUnavailable(candidate, System.currentTimeMillis());
+            throw unavailable;
+        }
         GenerationTask task = repository.claim(id, System.currentTimeMillis());
         if (task == null) return;
         String submittedRemote = null;
@@ -63,7 +70,7 @@ public class GenerationWorker {
                     GenerationProvider.Output output = provider.poll(task);
                     switch (output.status()) {
                         case PENDING -> {
-                            if (System.currentTimeMillis() - task.createdAt() > 24 * 60 * 60 * 1000L) {
+                            if (task.pollDeadlineAt() != null && System.currentTimeMillis() >= task.pollDeadlineAt()) {
                                 finish(task, State.FAILED, task.remoteId(), null, null, "POLL_TIMEOUT", 0, true, 0);
                             } else finish(task, State.RUNNING, task.remoteId(), null, null, null, task.attempts(), false, 5000);
                         }

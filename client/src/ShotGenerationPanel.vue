@@ -9,27 +9,28 @@
         <span>预留 ¥{{ overview.budget.reservedCost }} / ¥{{ overview.budget.costLimit }}</span>
         <span>已知实际成本 ¥{{ overview.knownActualCost }} · {{ overview.unknownCostTasks }} 个任务实际成本未知</span></div>
       <form v-if="overview.budget.usedVersions === 0" class="budget" @submit.prevent="configureBudget">
-        <label>最多生成版本数<input v-model.number="maxVersions" type="number" min="1" max="1000" required :disabled="busy || loading"></label>
-        <label>预留预算上限（元）<input v-model="costLimit" type="number" min="0" step="0.000001" required :disabled="busy || loading"></label>
-        <button :disabled="busy || loading">保存项目额度</button>
+        <label>最多生成版本数<input v-model.number="maxVersions" type="number" min="1" max="1000" required :disabled="busy || loading || project.archived"></label>
+        <label>预留预算上限（元）<input v-model="costLimit" type="number" min="0" step="0.000001" required :disabled="busy || loading || project.archived"></label>
+        <button :disabled="busy || loading || project.archived">保存项目额度</button>
       </form>
       <p class="help">首次生成后额度固定，局部重生成也占用版本额度。预留金额是配置的保守估算，供应商账单尚未接入；失败与待核对任务不会自动退还预留。项目额度不授予付费模型调用权限。</p>
       <div v-if="quote" class="quote">
         <p v-for="shot in quote.shots" :key="shot.shotId">镜头 {{ shot.sequence }} · {{ shot.title }} · {{ shot.kind === 'IMAGE_TO_VIDEO' ? '图生视频' : '文生视频' }} · {{ shot.model }} · {{ shot.imageSize }} · 预留 ¥{{ shot.reservation }} <span v-if="!shot.available">（调用未开放）</span></p>
         <p class="help" v-if="quote.shots.every(shot => shot.provider === 'mock')">当前使用 Mock：返回固定测试视频，用于验证流程与归档，不代表生成效果。</p>
-        <button :disabled="busy || loading || !cleanConfirmed || !initialIds.length || !quote.shots.every(shot => shot.available) || !overview.budget.maxVersions" @click="submit({ mode: 'INITIAL', shotIds: initialIds })">生成尚未提交的 {{ initialIds.length }} 个镜头</button>
+        <button :disabled="busy || loading || !cleanConfirmed || !initialShotsAvailable(initialIds, quote) || !overview.budget.maxVersions" @click="submit({ mode: 'INITIAL', shotIds: initialIds })">生成尚未提交的 {{ initialIds.length }} 个镜头</button>
       </div>
       <button v-if="pendingInput" :disabled="busy || loading || !cleanConfirmed" @click="retryPending">重试上次提交（复用请求编号）</button>
       <article v-for="version in overview.versions" :key="version.id" class="version">
         <div class="heading"><strong>{{ shotTitle(version) }} · 分镜 v{{ version.revision }} / 生成 v{{ version.version }}</strong><span>{{ generationStates[version.task.state] }}</span></div>
         <p class="help">{{ version.task.model }} · 任务 {{ version.task.id }}<br>预留 ¥{{ version.reservation }} · {{ costLabel(version) }}<span v-if="version.task.errorCode"> · {{ version.task.errorCode }}</span></p>
+        <p v-if="version.revision !== project.revision.number" class="help">来源于分镜 v{{ version.revision }} · {{ version.compatible ? '生成输入未变化，已完成视频可复用到当前分镜' : '生成输入已变化，可仅重生成此镜头；其他兼容镜头继续复用' }}</p>
         <div class="actions">
           <button v-if="version.task.state === 'SUCCEEDED'" :disabled="busy || loading" @click="preview(version.task)">查看已归档视频</button>
-          <button v-if="version.task.state === 'FAILED' && version.task.recoverable" :disabled="busy || loading || version.task.recoveryAvailable === false" @click="recover(version.task)">恢复原任务</button>
-          <button v-if="isLatest(version) && ['SUCCEEDED', 'FAILED'].includes(version.task.state)" :disabled="busy || loading || !cleanConfirmed || version.revision !== project.revision.number || !quote?.shots.find(shot => shot.shotId === version.shotId)?.available" @click="submit({ mode: 'REGENERATE', shotIds: [version.shotId] })">仅重生成此镜头</button>
+          <button v-if="version.task.state === 'FAILED' && version.task.recoverable" :disabled="busy || loading || project.archived || version.task.recoveryAvailable === false" @click="recover(version.task)">恢复原任务</button>
+          <button v-if="canRegenerateShot(version, project, overview.versions)" :disabled="busy || loading || !cleanConfirmed || !quote?.shots.find(shot => shot.shotId === version.shotId)?.available" @click="submit({ mode: 'REGENERATE', shotIds: [version.shotId] })">仅重生成此镜头</button>
         </div>
         <form v-if="version.task.state === 'SUBMISSION_UNKNOWN'" class="reconcile" @submit.prevent="reconcile(version.task, remoteIds[version.task.id])">
-          <label>已核实的模型 requestId<input v-model="remoteIds[version.task.id]" maxlength="128" :disabled="busy || loading" required></label><button :disabled="busy || loading || version.task.recoveryAvailable === false">补录并查询原任务</button>
+          <label>已核实的模型 requestId<input v-model="remoteIds[version.task.id]" maxlength="128" :disabled="busy || loading || project.archived" required></label><button :disabled="busy || loading || project.archived || version.task.recoveryAvailable === false">补录并查询原任务</button>
           <p v-if="version.task.recoveryAvailable === false" class="help">原任务恢复尚未开放，请先启用查询与归档恢复。</p>
         </form>
         <video v-if="artifact?.taskId === version.task.id" :src="artifact.url" controls preload="metadata"></video>
@@ -44,15 +45,15 @@
 import { ref, toRef, watch } from 'vue'
 import { apiRequest, captureAuthSession } from './api'
 import { storyboardApi } from './storyboardWorkspace'
-import { generationStates } from './generationWorkspace'
-import { useShotGenerationWorkspace } from './shotGenerationWorkspace'
+import { browserStorage, generationStates } from './generationWorkspace'
+import { canRegenerateShot, initialShotsAvailable, useShotGenerationWorkspace } from './shotGenerationWorkspace'
 import FilmWorkbench from './FilmWorkbench.vue'
 const props = defineProps({ user: Object, project: { type: Object, required: true }, dirty: Boolean })
 defineEmits(['applyCase'])
 const { overview, quote, error, notice, busy, loading, pendingInput, artifact, cleanConfirmed, initialIds,
   refresh, configure, submit, retryPending, recover, reconcile, preview } = useShotGenerationWorkspace({
   user: toRef(props, 'user'), project: toRef(props, 'project'), dirty: toRef(props, 'dirty'),
-  request: storyboardApi(apiRequest), captureSession: captureAuthSession, storage: sessionStorage })
+  request: storyboardApi(apiRequest), captureSession: captureAuthSession, storage: browserStorage('sessionStorage') })
 const maxVersions = ref(12), costLimit = ref('0'), remoteIds = ref({})
 watch(() => props.project.id, () => { maxVersions.value = 12; costLimit.value = '0'; remoteIds.value = {} })
 watch(overview, value => {
@@ -60,7 +61,6 @@ watch(overview, value => {
 })
 function configureBudget() { return configure({ maxVersions: maxVersions.value, costLimit: costLimit.value }) }
 function shotTitle(version) { try { return JSON.parse(version.shotJson).title } catch { return '镜头' } }
-function isLatest(version) { return !overview.value.versions.some(other => other.shotId === version.shotId && other.revision === version.revision && other.version > version.version) }
 function costLabel(version) { return version.costStatus === 'FREE_MOCK' ? 'Mock 实际成本 ¥0' : version.actualCost != null ? `实际成本 ¥${version.actualCost}` : version.costStatus === 'UNKNOWN' ? '实际成本未知' : '尚未提交模型，实际成本未结算' }
 </script>
 

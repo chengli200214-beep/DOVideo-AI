@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKeyFactory;
@@ -17,6 +18,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -35,6 +38,13 @@ public class AuthService {
     private static final String LOGIN_FAILURE_PREFIX = "auth:login-failures:";
     private static final int MAX_LOGIN_FAILURES = 8;
     private static final long LOGIN_FAILURE_WINDOW_MINUTES = 10;
+    private static final DefaultRedisScript<Long> RECORD_FAILURE = new DefaultRedisScript<>("""
+            local count = redis.call('INCR', KEYS[1])
+            if count == 1 or redis.call('PTTL', KEYS[1]) < 0 then
+                redis.call('PEXPIRE', KEYS[1], ARGV[1])
+            end
+            return count
+            """, Long.class);
     private static final int MAX_PASSWORD_LENGTH = 128;
     private static final int MAX_NICKNAME_LENGTH = 50;
 
@@ -169,26 +179,28 @@ public class AuthService {
     }
 
     public boolean loginAttemptAllowed(String username) {
-        String value = redisTemplate.opsForValue().get(LOGIN_FAILURE_PREFIX + username);
+        String value = redisTemplate.opsForValue().get(loginFailureKey(username));
         if (value == null) return true;
         try {
             return Long.parseLong(value) < MAX_LOGIN_FAILURES;
         } catch (NumberFormatException e) {
-            redisTemplate.delete(LOGIN_FAILURE_PREFIX + username);
+            redisTemplate.delete(loginFailureKey(username));
             return true;
         }
     }
 
     public void recordLoginFailure(String username) {
-        String key = LOGIN_FAILURE_PREFIX + username;
-        Long failures = redisTemplate.opsForValue().increment(key);
-        if (failures != null && failures == 1) {
-            redisTemplate.expire(key, LOGIN_FAILURE_WINDOW_MINUTES, TimeUnit.MINUTES);
-        }
+        redisTemplate.execute(RECORD_FAILURE, List.of(loginFailureKey(username)),
+                String.valueOf(TimeUnit.MINUTES.toMillis(LOGIN_FAILURE_WINDOW_MINUTES)));
     }
 
     public void clearLoginFailures(String username) {
-        redisTemplate.delete(LOGIN_FAILURE_PREFIX + username);
+        redisTemplate.delete(loginFailureKey(username));
+    }
+
+    private String loginFailureKey(String username) {
+        // MySQL's username collation is case-insensitive; every spelling shares this counter.
+        return LOGIN_FAILURE_PREFIX + username.trim().toLowerCase(Locale.ROOT);
     }
 
     private String normalizeUsername(String username) {

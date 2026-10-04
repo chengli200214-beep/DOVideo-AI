@@ -7,6 +7,16 @@ export function generationIsActive(state) {
   return ['QUEUED', 'SUBMITTING', 'RUNNING', 'SAVING'].includes(state)
 }
 
+// Some browsers throw even when obtaining the storage object (privacy settings).
+export function browserStorage(name) {
+  return {
+    getItem(key) { return globalThis[name].getItem(key) },
+    setItem(key, value) { return globalThis[name].setItem(key, value) },
+    removeItem(key) { return globalThis[name].removeItem(key) },
+    keys() { const storage = globalThis[name]; return Array.from({ length: storage.length }, (_, index) => storage.key(index)).filter(Boolean) }
+  }
+}
+
 export function buildGenerationRequest(form, capability, asset) {
   if (!capability?.available) throw new Error('当前模型尚未开放调用，请先检查服务配置与调用授权')
   const prompt = form.prompt.trim()

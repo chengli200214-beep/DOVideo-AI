@@ -37,6 +37,7 @@ public class QualityEvaluationService {
                 || input.notes()==null || input.notes().length()>2000) throw new IllegalArgumentException("三个评分均需为 1–5，评价文字最多 2000 字");
         return transaction.execute(tx -> {
             if(jdbc.queryForList("SELECT id FROM creative_projects WHERE id=? AND user_id=? FOR UPDATE",projectId,user).isEmpty()) throw new NoSuchElementException("创作项目不存在");
+            StoryboardRepository.requireActive(projects.byId(projectId,user));
             var owned=jdbc.queryForList("SELECT task_id FROM shot_generation_versions WHERE id=? AND project_id=?",versionId,projectId);
             if(owned.isEmpty()) throw new NoSuchElementException("镜头生成版本不存在");
             if(generation.get(user,(String)owned.getFirst().get("task_id")).state()!=GenerationTask.State.SUCCEEDED) throw conflict("只能对已归档视频进行质量评分");

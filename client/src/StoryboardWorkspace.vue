@@ -5,9 +5,19 @@
     <div v-if="!user" class="empty"><p>登录后创建项目、保存分镜版本。</p><button @click="$emit('login')">登录 / 注册</button></div>
     <template v-else>
       <p v-if="error" class="error" role="alert">{{ error }}</p><p v-if="notice" class="notice" role="status">{{ notice }}</p>
+      <p v-if="draftStorageError" class="error" role="alert">{{ draftStorageError }} <button v-if="draft" class="secondary" @click="exportDraft">导出草稿 JSON</button></p>
+      <div v-if="draftConflict" class="validation" role="alert">
+        <p>本机草稿基于 v{{ draftConflict.baseRevision }}，服务器已是 v{{ draftConflict.serverRevision }}。当前编辑区保留本机内容，保存前请对照处理。</p>
+        <details><summary>查看服务器当前脚本与镜头</summary><pre>{{ JSON.stringify(project.revision.draft, null, 2) }}</pre></details>
+        <button class="secondary" :disabled="busy || loading || libraryBusy" @click="applyLocalDraft">将本机草稿应用到最新版本</button>
+        <button class="secondary" :disabled="busy || loading || libraryBusy" @click="discardChanges">放弃本机草稿，载入服务器稿</button>
+        <button class="secondary" @click="exportDraft">导出本机草稿</button>
+      </div>
+      <p v-else-if="dirty && savedLocally" class="help" role="status">未提交的编辑已保存在本机当前账号下；重新打开项目可恢复。保存到服务器后才会生成分镜版本。</p>
       <div class="storyboard-grid">
         <aside>
           <form @submit.prevent="createProject" class="brief-form">
+            <fieldset class="brief-fields" :disabled="libraryBusy">
             <h2>创作需求</h2>
             <label>项目名称<input v-model="brief.title" maxlength="120" required :disabled="busy"></label>
             <label>产品名称<input v-model="brief.productName" maxlength="80" required :disabled="busy"></label>
@@ -22,16 +32,18 @@
             <div v-if="brief.referenceAssetId" class="asset-saved"><span>参考图已保存</span><button type="button" class="secondary" @click="brief.referenceAssetId = null">移除引用</button></div>
             <button :disabled="busy || uploading || loading || dirty">{{ busy ? '保存中…' : '创建模板分镜' }}</button>
             <p class="help">时长为创作规划，尚未提交视频模型。模板不会理解图片内容，图文一致性需人工检查。</p>
+            </fieldset>
           </form>
-          <div class="project-list"><div class="heading"><h2>最近项目</h2><button class="secondary" :disabled="loading || busy" @click="load">刷新</button></div>
-            <button v-for="item in projects" :key="item.id" class="project-choice" :class="{ selected: project?.id === item.id }"
-              :disabled="busy || dirty" @click="select(item.id)"><strong>{{ item.title }}</strong><span>{{ projectStates[item.status] }} · v{{ item.revision }}</span></button>
-            <button v-if="project" class="secondary" :disabled="busy || dirty" @click="reset">开始下一次创作</button></div>
+          <ProjectLibrary :user="user" :selected-id="project?.id" :revision="project?.revision.number" :blocked="busy || loading || uploading" :dirty="dirty || !!draftConflict" @select="select" @changed="libraryChanged" @busy="libraryBusy = $event" />
+          <button v-if="project" class="secondary" :disabled="busy || dirty || libraryBusy" @click="reset">开始下一次创作</button>
+          <AssetLibrary :user="user" :protected-ids="editingAssetIds" :blocked="busy || uploading || loading || libraryBusy" :cleanup-blocked="!!draftProtectionError" :cleanup-reason="draftProtectionError" @select="chooseAsset" @removed="removeAssetOption" @refresh-protection="refreshDraftProtection" />
         </aside>
-        <div class="editor">
-          <StoryboardModelPanel v-if="project" :user="user" :project="project" :dirty="dirty || busy || loading" @load="discardChanges" />
+        <fieldset class="editor" :disabled="libraryBusy">
+          <div v-if="project?.archived" class="notice"><p>此项目已归档，分镜与成片仍可查看。项目库中的「恢复项目」保留当前草稿，可恢复后继续编辑。</p>
+            <button v-if="dirty || draftConflict" class="secondary" :disabled="busy || loading" @click="discardChanges">放弃本机草稿，查看已保存分镜</button></div>
+          <StoryboardModelPanel v-if="project" :user="user" :project="project" :dirty="dirty || busy || loading || !!draftConflict || project.archived" @load="loadLatest" />
           <div v-if="!project" class="empty">填写创作需求后，会生成可编辑的脚本和镜头草稿。</div>
-          <fieldset v-else class="editor-body" :disabled="busy || loading">
+          <fieldset v-else class="editor-body" :disabled="busy || loading || project.archived">
             <div class="heading"><div><h2>{{ project.brief.title }}</h2><p class="help">{{ projectStates[project.status] }} · 当前版本 {{ project.revision.number }} · {{ dirty ? '有未保存修改' : '已保存' }}</p></div>
               <button class="secondary" :disabled="busy || loading" @click="discardChanges">重新载入已保存版本</button></div>
             <details class="original"><summary>原始创作需求</summary><p>{{ project.brief.goal }}</p><p>{{ project.brief.sellingPoints.join(' / ') }}</p></details>
@@ -55,8 +67,8 @@
               <div class="row"><label>负向提示（可选）<input v-model="shot.parameters.negativePrompt" maxlength="2000" :disabled="busy"></label><label>种子（可选）<input v-model="shot.parameters.seed" inputmode="numeric" :disabled="busy"></label></div>
             </article>
             <button class="secondary" :disabled="busy || draft.shots.length >= 8" @click="addShot">添加镜头</button>
-            <div class="save-actions"><button :disabled="busy || !dirty || totalDuration !== project.brief.desiredDurationSeconds" @click="save">保存编辑稿</button>
-              <button :disabled="busy || dirty || project.status === 'CONFIRMED' || !draft.shots.length" @click="confirm">确认当前分镜</button></div>
+            <div class="save-actions"><button :disabled="busy || !dirty || !!draftConflict || totalDuration !== project.brief.desiredDurationSeconds" @click="save">保存编辑稿</button>
+              <button :disabled="busy || dirty || !!draftConflict || project.status === 'CONFIRMED' || !draft.shots.length" @click="confirm">确认当前分镜</button></div>
             <p class="help">编辑后需保存并重新确认。确认记录用于后续生成，当前不会提交模型任务。</p>
             <details v-if="history" class="versions"><summary>修订与确认记录（{{ history.revisions.length }} 个版本）</summary>
               <p v-for="version in history.revisions" :key="version.number">v{{ version.number }} · {{ version.origin === 'TEMPLATE' ? '模板草稿' : version.origin === 'USER' ? '用户编辑稿' : '待人工补充' }} · {{ new Date(version.createdAt).toLocaleString() }}
@@ -64,8 +76,8 @@
               <p v-for="item in history.confirmations" :key="item.revision">v{{ item.revision }} 已于 {{ new Date(item.confirmedAt).toLocaleString() }} 确认</p>
               <p class="help">历史版本保持不变；载入旧版本后保存，会创建新的修订。</p></details>
           </fieldset>
-          <ShotGenerationPanel v-if="project" :user="user" :project="project" :dirty="dirty || busy || loading" @apply-case="applyEvaluationCase" />
-        </div>
+          <ShotGenerationPanel v-if="project" :user="user" :project="project" :dirty="dirty || busy || loading || !!draftConflict || project.archived" @apply-case="applyEvaluationCase" />
+        </fieldset>
       </div>
     </template>
   </section>
@@ -74,20 +86,41 @@
 <script setup>
 import { computed, onUnmounted, ref, toRef, watch } from 'vue'
 import { apiRequest, captureAuthSession } from './api'
+import { browserStorage } from './generationWorkspace'
+import { collectDraftAssetIds } from './storyboardDrafts'
+import { applyProjectArchiveState } from './libraryActions'
 import { composeShotPrompt, emptyShot, projectStates, storyboardApi, useStoryboardWorkspace } from './storyboardWorkspace'
 import ShotGenerationPanel from './ShotGenerationPanel.vue'
 import StoryboardModelPanel from './StoryboardModelPanel.vue'
+import ProjectLibrary from './ProjectLibrary.vue'
+import AssetLibrary from './AssetLibrary.vue'
 const props = defineProps({ user: Object })
-defineEmits(['login'])
+const emit = defineEmits(['login', 'draft-state'])
 const request = storyboardApi(apiRequest)
-const { projects, project, draft, history, error, notice, busy, loading, dirty, totalDuration, load, select, create, save, confirm, restore, reset } =
-  useStoryboardWorkspace({ user: toRef(props, 'user'), request, captureSession: captureAuthSession, storage: sessionStorage })
+const { projects, project, draft, history, error, notice, busy, loading, dirty, totalDuration, draftConflict, draftStorageError, savedLocally,
+  load, select, create, save, confirm, restore, reset, applyLocalDraft, discardDraft } =
+  useStoryboardWorkspace({ user: toRef(props, 'user'), request, captureSession: captureAuthSession, storage: browserStorage('sessionStorage'), draftStorage: browserStorage('localStorage') })
 const brief = ref({ title: '', productName: '', goal: '', style: '自然光，简洁产品展示', desiredDurationSeconds: 15, shotCount: 3, frameRatio: '9:16', referenceAssetId: null })
 const sellingPoints = ref(''), uploading = ref(false), uploadedAssets = ref([])
+const libraryBusy = ref(false), cachedDraftAssetIds = ref([]), draftProtectionError = ref('')
 let uploadEpoch = 0
 const assetIds = computed(() => Array.from(new Set([...uploadedAssets.value, brief.value.referenceAssetId, project.value?.brief.referenceAssetId,
   ...(draft.value?.shots.map(shot => shot.referenceAssetId) || [])].filter(Boolean))))
+const editingAssetIds = computed(() => [brief.value.referenceAssetId, project.value?.brief.referenceAssetId,
+  ...(draft.value?.shots.map(shot => shot.referenceAssetId) || []), ...cachedDraftAssetIds.value].filter(Boolean))
+function libraryChanged(item) { project.value = applyProjectArchiveState(project.value, item) }
+function refreshDraftProtection() {
+  if (!props.user) { cachedDraftAssetIds.value = []; draftProtectionError.value = ''; return }
+  try { cachedDraftAssetIds.value = collectDraftAssetIds(browserStorage('localStorage'), props.user.id); draftProtectionError.value = '' }
+  catch { cachedDraftAssetIds.value = []; draftProtectionError.value = '无法核对本机草稿引用，素材删除已暂停；仍可查看和使用图片。' }
+}
+watch([() => props.user?.id, () => JSON.stringify(draft.value?.shots.map(shot => shot.referenceAssetId) || [])], refreshDraftProtection, { immediate: true })
+function draftStorageChanged(event) { if (!event.key || event.key.startsWith(`storyboard-draft:${props.user?.id}:`)) refreshDraftProtection() }
+window.addEventListener('storage', draftStorageChanged)
+function chooseAsset(asset) { if (!uploadedAssets.value.includes(asset.id)) uploadedAssets.value.push(asset.id); brief.value.referenceAssetId = asset.id }
+function removeAssetOption(id) { uploadedAssets.value = uploadedAssets.value.filter(value => value !== id) }
 async function createProject() {
+  if (libraryBusy.value) return
   const input = { ...brief.value, sellingPoints: sellingPoints.value.split('\n').map(item => item.trim()).filter(Boolean) }
   if (!input.sellingPoints.length || input.sellingPoints.length > 8 || input.sellingPoints.some(item => item.length > 120)) { error.value = '请填写 1–8 条卖点，每条最多 120 字'; return }
   await create(input)
@@ -109,7 +142,21 @@ function addShot() { draft.value.shots.push(emptyShot(draft.value.shots.length +
 function removeShot(index) { draft.value.shots.splice(index, 1); renumber() }
 function moveShot(index, direction) { const shot = draft.value.shots.splice(index, 1)[0]; draft.value.shots.splice(index + direction, 0, shot); renumber() }
 function renumber() { draft.value.shots.forEach((shot, index) => { shot.sequence = index + 1 }) }
-function discardChanges() { return select(project.value.id) }
+function loadLatest() { return select(project.value.id) }
+function discardChanges() {
+  if ((dirty.value || draftConflict.value) && !window.confirm('确定放弃当前未提交的分镜编辑，并载入服务器版本？')) return
+  return discardDraft()
+}
+function exportDraft() {
+  if (!draft.value || !project.value) return
+  const blob = new Blob([JSON.stringify({ projectId: project.value.id, baseRevision: draftConflict.value?.baseRevision || project.value.revision.number, draft: draft.value }, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob), link = document.createElement('a')
+  link.href = url; link.download = `storyboard-draft-${project.value.id}.json`; link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 5000)
+}
+watch([dirty, draftConflict, savedLocally, draftStorageError], () => emit('draft-state', {
+  dirty: dirty.value || !!draftConflict.value, savedLocally: savedLocally.value && !draftStorageError.value
+}), { immediate: true })
 function applyEvaluationCase(item) {
   if (!item || busy.value || loading.value || dirty.value || draft.value.shots.length < 2) return
   const reference = draft.value.shots[0].referenceAssetId
@@ -121,7 +168,7 @@ watch(() => props.user?.id, () => {
   uploadEpoch += 1; uploadedAssets.value = []; uploading.value = false; sellingPoints.value = ''
   brief.value = { title: '', productName: '', goal: '', style: '自然光，简洁产品展示', desiredDurationSeconds: 15, shotCount: 3, frameRatio: '9:16', referenceAssetId: null }
 })
-onUnmounted(() => { uploadEpoch += 1 })
+onUnmounted(() => { uploadEpoch += 1; window.removeEventListener('storage', draftStorageChanged); emit('draft-state', { dirty: false, savedLocally: false }) })
 </script>
 
 <style scoped>
@@ -133,6 +180,7 @@ h1 { font-size:clamp(24px,3vw,36px); margin:12px 0; } h2 { font-size:18px; margi
 .storyboard-grid { display:grid; grid-template-columns:310px minmax(0,1fr); gap:24px; align-items:start; }
 .brief-form, .project-list, .editor { padding:22px; border:1px solid #303540; border-radius:14px; background:#15181e; }
 .brief-form { display:flex; flex-direction:column; gap:15px; } .project-list { margin-top:20px; }
+.brief-fields { display:contents; border:0; padding:0; margin:0; } .editor { min-width:0; margin:0; }
 .editor-body { border:0; padding:0; margin:0; min-width:0; }
 label { display:flex; flex-direction:column; gap:7px; font-size:13px; line-height:1.5; }
 input, textarea, select { box-sizing:border-box; width:100%; background:#0e1116; color:#e5e8ed; border:1px solid #3a404d; border-radius:8px; padding:10px; font:inherit; }

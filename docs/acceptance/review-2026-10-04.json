@@ -1,0 +1,42 @@
+{
+  "verifiedAt": "2026-10-04T21:36:08+08:00",
+  "baseCommit": "18a6aff055db5e4d785e2b377396688fe3899a7a",
+  "backendTests": 145,
+  "frontendTests": 77,
+  "infrastructureTests": 1,
+  "infrastructureChecks": 21,
+  "frontendBuild": "PASS",
+  "standalonePackage": "PASS",
+  "existingDatabaseUpgrade": "V9 to V11 PASS",
+  "runtimeProvider": "mock",
+  "paidCalls": 0,
+  "githubActions": "Not run for these local changes",
+  "infrastructure": {
+    "paidCalls": 0,
+    "modelProvider": "mock",
+    "checks": [
+      "Real MySQL Flyway V1-V11 migrations and case-sensitive idempotency collation",
+      "Real registration, login and Redis authentication",
+      "Eight concurrent HTTP submissions create one MySQL task; conflicts and owner isolation enforced",
+      "Authenticated multipart reference upload deduplicates content, enforces ownership and persists asset IDs without inline data",
+      "DeepSeek planning endpoints require ownership; default paid gate rejects before MySQL reservation and leaves all model task counts unchanged",
+      "Database-only concurrent MySQL DeepSeek reservations consume exactly one call across two projects under a one-call global authorization; persistent policy counters verified without any model HTTP request",
+      "Application restart resumes QUEUED/RUNNING/SAVING using persistent DB state and the original Redis session",
+      "Expired SUBMITTING remains SUBMISSION_UNKNOWN and cannot be blindly retried",
+      "Actual MinIO signed download matches MP4 bytes, length and SHA-256; retry keeps one object and anonymous download is denied",
+      "Both text-to-video and image-to-video finish through automatic scheduled workers",
+      "Reference objects remain private after restart; owner-only trace preserves effective parameters and ordered stage timestamps",
+      "Template storyboard creation, idempotent editing, immutable revisions and confirmation history survive application restart; confirmation creates no video task",
+      "Concurrent confirmed-storyboard submission creates one three-shot batch; queued shot tasks resume after restart and archive private MinIO artifacts; local regeneration creates only one new version and enforces project quota",
+      "Database-only concurrent MySQL reservations admit one 6 CNY reservation under a 10 CNY cap and persist counters across repository restart; no model call",
+      "Shot input snapshots, four generation versions, completed artifacts and immutable consumed project quota survive a second application restart",
+      "Queued composition survives restart and executes real FFmpeg normalization, Chinese subtitle burn-in, audio padding and concat; private H.264 MP4 metadata, SHA-256 and owner-only streaming download verified without creating model tasks",
+      "Human-review idempotency, ownership, all-version denominator and Mock labeling persist across restart; authenticated JSON and formula-safe CSV exports verified",
+      "Real MySQL project library paginates equal timestamps without duplicates, treats %/_/! search characters literally, enforces ownership, and archives/restores a completed project while preserving readable films",
+      "Real MinIO unused-reference deletion is owner-scoped and idempotent, persisted cleanup reaches SUCCEEDED and removes the object, while project/task references remain protected with HTTP 409 and stay readable",
+      "Real Redis Lua records eight mixed-case login failures under one canonical key with an expiring TTL; all case variants are blocked until expiry, then login resumes without affecting the project owner's session",
+      "Video provider=mock; video and DeepSeek paid gates are closed in all server instances"
+    ],
+    "result": "PASS"
+  }
+}

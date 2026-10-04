@@ -9,14 +9,15 @@ function view(id = 'project', number = 1) {
   return { id, status: 'DRAFT', brief: { title: '产品视频', style: '自然光', desiredDurationSeconds: 10, frameRatio: '9:16' }, updatedAt: 1,
     revision: { number, draft: { script: '产品介绍', shots: [emptyShot(1, '9:16', 'one'), emptyShot(2, '9:16', 'two')] } } }
 }
-function setup(respond) {
-  const calls = [], user = ref({ id: 1 }), scope = effectScope(), stored = new Map()
+function setup(respond, options = {}) {
+  const calls = [], user = ref({ id: 1 }), scope = effectScope(), stored = options.stored || new Map()
   let sequence = 0
   const request = async (path, options) => { calls.push({ path, options }); return respond(path, options) }
   const workspace = scope.run(() => useStoryboardWorkspace({ user, request, captureSession: () => () => true,
     storage: { getItem: key => stored.get(key), setItem: (key, value) => stored.set(key, value), removeItem: key => stored.delete(key) },
+    draftStorage: options.draftStorage,
     newKey: () => `key-${++sequence}`, digest: async value => value }))
-  return { ...workspace, calls, user, close: () => scope.stop() }
+  return { ...workspace, calls, user, stored, close: () => scope.stop() }
 }
 const history = { revisions: [], attempts: [], confirmations: [] }
 
@@ -33,6 +34,57 @@ test('normalizes editor-only values while keeping editorial duration out of mode
   input.shots[0].parameters.seed = '1.2'
   assert.throws(() => normalizeStoryboardEdit(input), /非负整数/)
   assert.equal(composeShotPrompt({ subject: ' 鞋子 ', action: '缓慢旋转', camera: '推进' }, '自然光'), '鞋子，缓慢旋转，推进，自然光')
+})
+
+test('unsaved storyboard edits survive disposal and restore only under their account and project', async () => {
+  const stored = new Map(), respond = path => path === '/generation/projects' ? [] : path.endsWith('/revisions') ? history : view(path.split('/').at(-1))
+  const first = setup(respond, { stored })
+  await flush(); await first.select('project'); first.draft.value.script = '本机未提交脚本'; first.draft.value.shots[0].caption = '未提交字幕'
+  assert.equal(first.savedLocally.value, true); first.close()
+  const second = setup(respond, { stored })
+  try {
+    await flush(); await second.select('project')
+    assert.equal(second.draft.value.script, '本机未提交脚本'); assert.equal(second.draft.value.shots[0].caption, '未提交字幕')
+    await second.select('another'); assert.equal(second.draft.value.script, '产品介绍')
+    second.user.value = { id: 2 }; await flush(); await second.select('project')
+    assert.equal(second.draft.value.script, '产品介绍')
+    second.user.value = { id: 1 }; await flush(); await second.select('project')
+    assert.equal(second.draft.value.script, '本机未提交脚本')
+  } finally { second.close() }
+})
+
+test('a newer server revision preserves the local draft and requires explicit conflict resolution', async () => {
+  const stored = new Map()
+  const first = setup(path => path === '/generation/projects' ? [] : path.endsWith('/revisions') ? history : view(), { stored })
+  await flush(); await first.select('project'); first.draft.value.script = '本机脚本'; first.close()
+  let body
+  const second = setup((path, options) => {
+    if (path === '/generation/projects') return []
+    if (options) { body = JSON.parse(options.body); return { ...view('project', 3), revision: { number: 3, draft: body.draft } } }
+    return path.endsWith('/revisions') ? history : view('project', 2)
+  }, { stored })
+  try {
+    await flush(); await second.select('project')
+    assert.deepEqual(second.draftConflict.value, { baseRevision: 1, serverRevision: 2 })
+    await second.save(); assert.equal(body, undefined)
+    second.applyLocalDraft(); await second.save()
+    assert.equal(body.expectedRevision, 2); assert.equal(body.draft.script, '本机脚本')
+    assert.equal(second.dirty.value, false); assert.equal(stored.has('storyboard-draft:1:project'), false)
+  } finally { second.close() }
+})
+
+test('explicit discard removes local edits and blocked browser storage leaves a visible recoverable error', async () => {
+  const respond = path => path === '/generation/projects' ? [] : path.endsWith('/revisions') ? history : view()
+  const workspace = setup(respond)
+  try {
+    await flush(); await workspace.select('project'); workspace.draft.value.script = '丢弃内容'; await workspace.discardDraft()
+    assert.equal(workspace.draft.value.script, '产品介绍'); assert.equal(workspace.stored.has('storyboard-draft:1:project'), false)
+  } finally { workspace.close() }
+  const blocked = setup(respond, { draftStorage: { getItem() { throw new Error('Storage blocked') }, setItem() { throw new Error('Quota exceeded') }, removeItem() { throw new Error('Storage blocked') } } })
+  try {
+    await flush(); await blocked.select('project'); blocked.draft.value.script = '仍能编辑'
+    assert.equal(blocked.dirty.value, true); assert.equal(blocked.savedLocally.value, false); assert.match(blocked.draftStorageError.value, /不可用/)
+  } finally { blocked.close() }
 })
 
 test('a lost creation response reuses its key, and confirmation never submits a video task', async () => {

@@ -2,15 +2,15 @@
   <section class="film-workbench" aria-labelledby="film-heading">
     <div class="heading"><h2 id="film-heading">成片与效果评测</h2><button :disabled="busy || loading" @click="refresh()">刷新成片与评测</button></div>
     <p v-if="error" class="error" role="alert">{{ error }}</p><p v-if="notice" class="notice" role="status">{{ notice }}</p>
-    <p class="help">选择当前确认稿的已归档镜头，按分镜顺序合成。统一画幅和帧率，保留原声，无音轨时补静音；口播文字不会自动配音。</p>
+    <p class="help">选择与当前确认稿兼容的已归档镜头，生成输入未变化的历史视频可直接复用；按当前分镜顺序和字幕合成。保留原声，无音轨时补静音；口播文字不会自动配音。</p>
     <p v-if="runtime && !runtime.available" class="error">合成工具不可用，请检查后端 FFmpeg / ffprobe 配置。</p>
     <div class="selections">
       <label v-for="shot in project.revision.draft.shots" :key="shot.id">镜头 {{ shot.sequence }} · {{ shot.title }}
         <select v-model="choices[shot.id]" :disabled="busy || loading || !confirmed"><option :value="undefined">请选择已归档版本</option>
-          <option v-for="v in options(shot.id)" :key="v.id" :value="v.id">生成 v{{ v.version }} · {{ v.task.model }} · {{ new Date(v.createdAt).toLocaleString() }}</option></select>
+          <option v-for="v in options(shot.id)" :key="v.id" :value="v.id">来源分镜 v{{ v.revision }} / 生成 v{{ v.version }} · {{ v.task.model }} · {{ new Date(v.createdAt).toLocaleString() }}</option></select>
       </label>
     </div>
-    <label class="check"><input v-model="burnCaptions" type="checkbox" :disabled="busy || loading">将镜头字幕烧录进视频</label>
+    <label class="check"><input v-model="burnCaptions" type="checkbox" :disabled="busy || loading || project.archived">将镜头字幕烧录进视频</label>
     <p v-if="burnCaptions && runtime && !runtime.captionsAvailable" class="error">中文字幕字体不可用，可配置 CJK 字体或关闭字幕烧录。</p>
     <div class="actions"><button :disabled="busy || loading || !ready || !selectionDirty" @click="saveSelection">保存镜头选择</button>
       <button :disabled="busy || loading || !confirmed || selectionDirty || !runtime?.available || (burnCaptions && !runtime.captionsAvailable)" @click="compose">合成为视频</button></div>
@@ -18,7 +18,7 @@
     <article v-for="task in films?.tasks || []" :key="task.id" class="film">
       <div class="heading"><strong>成片 {{ task.id.slice(0, 8) }}</strong><span>{{ filmStates[task.state] }} · {{ new Date(task.createdAt).toLocaleString() }}</span></div>
       <p class="help" v-if="task.errorCode">{{ task.errorCode }} · 已尝试 {{ task.attempts }} 次</p>
-      <div class="actions"><button v-if="task.state === 'FAILED'" :disabled="busy || loading" @click="retry(task)">恢复合成</button>
+      <div class="actions"><button v-if="task.state === 'FAILED'" :disabled="busy || loading || project.archived" @click="retry(task)">恢复合成</button>
         <button v-if="task.state === 'SUCCEEDED'" :disabled="busy || loading" @click="preview(task)">预览与溯源</button>
         <button v-if="task.state === 'SUCCEEDED'" :disabled="downloading" @click="downloadFilm(task)">下载 MP4</button></div>
       <template v-if="artifact?.id === task.id"><video :src="artifact.url" controls preload="metadata"></video>
@@ -28,8 +28,8 @@
     <div class="evaluation">
       <h3>固定样例与人工评价</h3>
       <p class="help">可将前两个镜头提示词替换为同一固定样例的原始 / 结构化提示词，共用参考图和种子。操作仅编辑草稿，随后需保存、确认并明确提交生成。</p>
-      <div class="actions"><select v-model="caseId" :disabled="busy || loading"><option value="">选择评测样例</option><option v-for="item in cases" :key="item.id" :value="item.id">{{ item.title }}</option></select>
-        <button :disabled="!caseId || busy || loading || dirty || project.revision.draft.shots.length < 2" @click="$emit('applyCase', cases.find(item => item.id === caseId))">载入对比提示词</button></div>
+      <div class="actions"><select v-model="caseId" :disabled="busy || loading || project.archived"><option value="">选择评测样例</option><option v-for="item in cases" :key="item.id" :value="item.id">{{ item.title }}</option></select>
+        <button :disabled="!caseId || busy || loading || dirty || project.archived || project.revision.draft.shots.length < 2" @click="$emit('applyCase', cases.find(item => item.id === caseId))">载入对比提示词</button></div>
       <template v-if="report">
         <div class="metrics"><span>全部版本 {{ report.summary.totalVersions }}</span><span>成功 {{ report.summary.succeeded }}</span><span>已评价 {{ report.summary.reviewed }}</span><span>可用 {{ report.summary.usable }}</span><span>未评价 {{ report.summary.unreviewed }}</span>
           <span>成功任务耗时中位数 {{ report.summary.medianCompletedMs == null ? '暂无' : `${(report.summary.medianCompletedMs / 1000).toFixed(2)} 秒` }}</span>
@@ -41,10 +41,10 @@
         <article v-for="row in report.rows.filter(row => row.state === 'SUCCEEDED')" :key="row.versionId" class="review">
           <strong>生成 v{{ row.version }} · 分镜 v{{ row.revision }} · {{ row.caseId }} / {{ row.variant }} · {{ row.provider === 'mock' ? 'Mock 演示' : row.model }}</strong>
           <form v-if="reviewForms[row.versionId]" @submit.prevent="saveReview(row)">
-            <div class="scores"><label v-for="field in scoreFields" :key="field.key">{{ field.title }}<select v-model.number="reviewForms[row.versionId][field.key]" :disabled="busy || loading" required><option :value="0">未评分</option><option v-for="n in 5" :key="n" :value="n">{{ n }}</option></select></label></div>
-            <label class="check"><input v-model="reviewForms[row.versionId].usable" type="checkbox" :disabled="busy || loading">人工判断可用</label>
-            <label>评价依据<textarea v-model="reviewForms[row.versionId].notes" maxlength="2000" rows="2" :disabled="busy || loading"></textarea></label>
-            <div class="actions"><button :disabled="busy || loading || scoreFields.some(field => !reviewForms[row.versionId][field.key])">保存评价</button><button type="button" :disabled="busy || loading" @click="resetReview(row)">载入已保存评价</button></div>
+            <div class="scores"><label v-for="field in scoreFields" :key="field.key">{{ field.title }}<select v-model.number="reviewForms[row.versionId][field.key]" :disabled="busy || loading || project.archived" required><option :value="0">未评分</option><option v-for="n in 5" :key="n" :value="n">{{ n }}</option></select></label></div>
+            <label class="check"><input v-model="reviewForms[row.versionId].usable" type="checkbox" :disabled="busy || loading || project.archived">人工判断可用</label>
+            <label>评价依据<textarea v-model="reviewForms[row.versionId].notes" maxlength="2000" rows="2" :disabled="busy || loading || project.archived"></textarea></label>
+            <div class="actions"><button :disabled="busy || loading || project.archived || scoreFields.some(field => !reviewForms[row.versionId][field.key])">保存评价</button><button type="button" :disabled="busy || loading" @click="resetReview(row)">载入已保存评价</button></div>
           </form>
         </article>
       </template>
@@ -56,15 +56,16 @@
 import { ref, toRef, watch } from 'vue'
 import { apiRequest, captureAuthSession } from './api'
 import { storyboardApi } from './storyboardWorkspace'
-import { useFilmWorkspace } from './filmWorkspace'
+import { reusableFilmVersion, useFilmWorkspace } from './filmWorkspace'
+import { browserStorage } from './generationWorkspace'
 const props = defineProps({ user: Object, project: Object, dirty: Boolean, versions: Array })
 defineEmits(['applyCase'])
 const { films, report, cases, runtime, choices, burnCaptions, busy, loading, error, notice, artifact, confirmed, selectionDirty, ready, refresh, saveSelection, compose, retry, review, preview } = useFilmWorkspace({
-  user: toRef(props, 'user'), project: toRef(props, 'project'), dirty: toRef(props, 'dirty'), versions: toRef(props, 'versions'), request: storyboardApi(apiRequest), captureSession: captureAuthSession, storage: sessionStorage })
+  user: toRef(props, 'user'), project: toRef(props, 'project'), dirty: toRef(props, 'dirty'), versions: toRef(props, 'versions'), request: storyboardApi(apiRequest), captureSession: captureAuthSession, storage: browserStorage('sessionStorage') })
 const filmStates = { QUEUED: '等待合成', RENDERING: '正在合成', SUCCEEDED: '已归档', FAILED: '合成失败' }
 const scoreFields = [{ key: 'contentScore', title: '内容符合度' }, { key: 'motionScore', title: '动作与画面稳定性' }, { key: 'consistencyScore', title: '主体一致性' }]
 const reviewForms = ref({}), caseId = ref(''), downloading = ref(false)
-function options(shot) { return (props.versions || []).filter(v => v.shotId === shot && v.revision === props.project.revision.number && v.task.state === 'SUCCEEDED').sort((a, b) => b.version - a.version) }
+function options(shot) { return (props.versions || []).filter(v => v.shotId === shot && reusableFilmVersion(v, props.project.revision.number)).sort((a, b) => b.revision - a.revision || b.version - a.version) }
 function resetReview(row) { const saved = row.review; reviewForms.value[row.versionId] = { expectedReviewVersion: saved?.number || 0, contentScore: saved?.contentScore || 0, motionScore: saved?.motionScore || 0, consistencyScore: saved?.consistencyScore || 0, usable: saved?.usable || false, notes: saved?.notes || '' } }
 watch(report, value => { for (const row of value?.rows || []) if (!reviewForms.value[row.versionId]) resetReview(row) })
 watch(() => [props.user?.id, props.project.id, props.project.revision.number], () => { reviewForms.value = {}; caseId.value = ''; downloading.value = false })

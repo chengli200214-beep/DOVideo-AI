@@ -15,6 +15,8 @@ class AigcProviderWiringTest {
         try (MockWebServer minio = new MockWebServer()) {
             minio.setDispatcher(new Dispatcher() {
                 @Override public MockResponse dispatch(RecordedRequest request) {
+                    if (request.getRequestUrl().queryParameterNames().contains("policy"))
+                        return new MockResponse().setBody("{\"Version\":\"2012-10-17\",\"Statement\":[]}").addHeader("Content-Type","application/json");
                     return request.getMethod().equals("HEAD") ? new MockResponse().setResponseCode(200)
                         : new MockResponse().setBody("<LocationConstraint xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">us-east-1</LocationConstraint>");
                 }

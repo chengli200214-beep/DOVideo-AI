@@ -1,19 +1,36 @@
-param([string]$JdkHome = $env:JAVA_HOME, [string]$FfmpegDir = $env:FFMPEG_DIR, [int]$Port = 9095, [switch]$RecoverVideoTasks, [switch]$Seedance)
+param([string]$JdkHome = $env:JAVA_HOME, [string]$FfmpegDir = $env:FFMPEG_DIR, [int]$Port = 9095, [switch]$RecoverVideoTasks, [switch]$Seedance,
+    [ValidateRange(1, 300)][int]$DependencyReadyTimeoutSeconds = 60)
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $PSScriptRoot
 $taskLocal = Join-Path $taskRoot '.local'
 $taskPidFile = Join-Path $taskLocal 'aigc-process.json'
 $taskSecretsFile = Join-Path $taskLocal 'aigc.env'
+$taskRunningRecord = $null
+$taskExpectedJar = [IO.Path]::GetFullPath((Join-Path $taskRoot 'server/target/server-0.0.1-SNAPSHOT.jar'))
+$taskDockerHost = 'npipe:////./pipe/dockerDesktopLinuxEngine'
+function Test-AigcJavaProcess($Candidate) {
+    if (-not $Candidate -or [string]::IsNullOrWhiteSpace($Candidate.CommandLine)) { return $false }
+    if ([IO.Path]::GetFileName([string]$Candidate.ExecutablePath) -ine 'java.exe') { return $false }
+    if ($Candidate.CommandLine -notmatch '(?:^|\s)-jar\s+(?:"([^"]+)"|(\S+))(?=\s|$)') { return $false }
+    $taskCommandJar = if ($Matches[1]) { $Matches[1] } else { $Matches[2] }
+    return [IO.Path]::GetFullPath($taskCommandJar) -eq $taskExpectedJar
+}
 if (-not $JdkHome -or -not (Test-Path -LiteralPath (Join-Path $JdkHome 'bin/java.exe'))) { throw 'Pass -JdkHome with an installed JDK 21 or newer.' }
 if (Test-Path -LiteralPath $taskPidFile) {
     $taskPrevious = Get-Content -LiteralPath $taskPidFile -Raw | ConvertFrom-Json
-    $taskProcess = Get-CimInstance Win32_Process -Filter "ProcessId = $($taskPrevious.pid)"
-    if ($taskProcess -and $taskProcess.CommandLine.Contains($taskPrevious.jar)) {
-        if ([bool]$taskPrevious.paid -or [bool]$taskPrevious.videoRecovery -ne [bool]$RecoverVideoTasks -or [bool]$taskPrevious.seedance -ne [bool]$Seedance) { throw 'Requested provider/recovery/paid mode differs from the running app. Stop it with scripts/stop-aigc.ps1, then start again.' }
-        Write-Output "AIGC is already running: http://127.0.0.1:$($taskPrevious.port)/?storyboard"; return
+    if ($taskPrevious.jar -ne $taskExpectedJar) { throw 'Saved process does not belong to this workspace.' }
+    $taskRecordedPid = 0
+    if (-not [int]::TryParse([string]$taskPrevious.pid, [ref]$taskRecordedPid) -or $taskRecordedPid -le 0) { throw 'Saved process ID is invalid.' }
+    $taskProcess = Get-CimInstance Win32_Process -Filter "ProcessId = $taskRecordedPid"
+    if ($taskProcess -and -not (Test-AigcJavaProcess $taskProcess)) { throw 'Saved PID belongs to another or unverifiable process. No process was stopped.' }
+    if ($taskProcess) {
+        foreach ($taskFlag in @('paid', 'videoRecovery', 'seedance')) { if ($taskPrevious.$taskFlag -isnot [bool]) { throw 'Saved process mode cannot be verified; no dependencies were restarted.' } }
+        if ([bool]$taskPrevious.paid -or [bool]$taskPrevious.videoRecovery -ne [bool]$RecoverVideoTasks -or [bool]$taskPrevious.seedance -ne [bool]$Seedance -or [int]$taskPrevious.port -ne $Port) { throw 'Requested port/provider/recovery/paid mode differs from the running app. Stop it with scripts/stop-aigc.ps1, then start again.' }
+        $taskRunningRecord = $taskPrevious
+        $taskRunningCreationDate = $taskProcess.CreationDate
     }
 }
-if (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue) { throw "Port $Port is occupied; choose -Port or stop the existing service." }
+if (-not $taskRunningRecord -and (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)) { throw "Port $Port is occupied; choose -Port or stop the existing service." }
 New-Item -ItemType Directory -Path $taskLocal -Force | Out-Null
 if (-not $FfmpegDir) {
     $taskBinary = Get-ChildItem -LiteralPath (Join-Path $taskRoot '.tools') -Recurse -File -Filter ffmpeg.exe -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -25,7 +42,21 @@ if (-not $FfmpegDir) {
 }
 if (-not $FfmpegDir -or -not (Test-Path -LiteralPath (Join-Path $FfmpegDir 'ffprobe.exe'))) { throw 'Install FFmpeg/ffprobe with scripts/install-ffmpeg.ps1 or pass -FfmpegDir.' }
 $FfmpegDir = (Resolve-Path -LiteralPath $FfmpegDir).Path
+if ($taskRunningRecord -and -not (Test-Path -LiteralPath $taskSecretsFile)) { throw 'The running app has no saved infrastructure credentials. Restore .local/aigc.env before recovering dependencies.' }
+$taskDockerSaved = @{}
+try {
+foreach ($taskName in @('DOCKER_CONTEXT', 'DOCKER_HOST', 'DOCKER_TLS', 'DOCKER_TLS_VERIFY', 'DOCKER_CERT_PATH')) {
+    $taskDockerSaved[$taskName] = [Environment]::GetEnvironmentVariable($taskName, 'Process')
+    [Environment]::SetEnvironmentVariable($taskName, $null, 'Process')
+}
+# Paid/mode/ownership checks must precede engine startup: reconnecting a live JVM can wake its workers.
+& (Join-Path $PSScriptRoot 'ensure-docker.ps1') | Out-Host
 if (-not (Test-Path -LiteralPath $taskSecretsFile)) {
+    $taskVolumes = @(& docker --host $taskDockerHost volume ls --format '{{.Name}}')
+    if ($LASTEXITCODE -ne 0) { throw 'Could not inspect local persistent volumes; no credentials were generated.' }
+    if (@($taskVolumes | Where-Object { $_.StartsWith('dovideo-aigc-local_', [StringComparison]::OrdinalIgnoreCase) }).Count -gt 0) {
+        throw 'Existing project volumes have no saved credentials. Restore .local/aigc.env; generating new passwords would not update existing MySQL data.'
+    }
     @('AIGC_DB_PASSWORD','AIGC_MYSQL_ROOT_PASSWORD','AIGC_REDIS_PASSWORD','AIGC_MINIO_PASSWORD') | ForEach-Object { "$_=$([Guid]::NewGuid().ToString('N'))" } | Set-Content -LiteralPath $taskSecretsFile -Encoding utf8
 }
 $taskEnvironment = @{}
@@ -92,8 +123,29 @@ try {
     foreach ($taskEntry in $taskEnvironment.GetEnumerator()) { $taskSaved[$taskEntry.Key]=[Environment]::GetEnvironmentVariable($taskEntry.Key,'Process'); [Environment]::SetEnvironmentVariable($taskEntry.Key,$taskEntry.Value,'Process') }
     Push-Location $taskRoot
     try {
-        & docker compose -p dovideo-aigc-local -f docker-compose.aigc.yml up -d --wait --wait-timeout 180
+        # A surviving Java process alone is not proof that its Docker dependencies are ready.
+        & docker --host $taskDockerHost compose -p dovideo-aigc-local -f (Join-Path $taskRoot 'docker-compose.aigc.yml') up -d --wait --wait-timeout 180 mysql redis minio
         if ($LASTEXITCODE -ne 0) { throw 'Local infrastructure did not become ready.' }
+        # MinIO has no image healthcheck; Compose "running" is not its readiness signal.
+        $taskMinioDeadline = [DateTime]::UtcNow.AddSeconds($DependencyReadyTimeoutSeconds)
+        $taskMinioReady = $false
+        while ([DateTime]::UtcNow -lt $taskMinioDeadline) {
+            $taskProbeTimeout = [Math]::Max(1, [Math]::Min(2, [Math]::Ceiling(($taskMinioDeadline - [DateTime]::UtcNow).TotalSeconds)))
+            try { $taskProbe = Invoke-WebRequest 'http://127.0.0.1:9002/minio/health/ready' -TimeoutSec $taskProbeTimeout -UseBasicParsing; if ($taskProbe.StatusCode -eq 200) { $taskMinioReady = $true; break } } catch { }
+            Start-Sleep -Milliseconds 250
+        }
+        if (-not $taskMinioReady) { throw 'MinIO did not become ready; the existing app was not reported healthy. Inspect this project container logs.' }
+        if ($taskRunningRecord) {
+            $taskCurrentProcess = Get-CimInstance Win32_Process -Filter "ProcessId = $($taskRunningRecord.pid)"
+            if (-not (Test-AigcJavaProcess $taskCurrentProcess) -or $taskCurrentProcess.CreationDate -ne $taskRunningCreationDate) { throw 'The original app exited or its PID changed during dependency recovery. No unrelated process was stopped; start the app again after checking its logs.' }
+            $taskListeners = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
+            if ($taskListeners.Count -eq 0 -or @($taskListeners | Where-Object { $_.OwningProcess -ne $taskRunningRecord.pid }).Count -gt 0) { throw 'The requested app port is not owned by the saved Java process; no unrelated process was stopped.' }
+            try { $taskExistingResponse = Invoke-WebRequest "http://127.0.0.1:$Port/" -TimeoutSec 5 -UseBasicParsing }
+            catch { throw 'Docker dependencies recovered, but the existing app did not respond. Use scripts/stop-aigc.ps1 before starting it again.' }
+            if ($taskExistingResponse.StatusCode -ne 200) { throw 'Existing app is not ready; inspect .local/server.log.' }
+            Write-Output "AIGC and its Docker dependencies are ready: http://127.0.0.1:$Port/?storyboard"
+            return
+        }
         Push-Location client
         try {
             if (-not (Test-Path -LiteralPath 'node_modules/vue/package.json')) { & npm.cmd ci; if ($LASTEXITCODE -ne 0) { throw 'Client dependency installation failed.' } }
@@ -101,7 +153,8 @@ try {
         } finally { Pop-Location }
         Push-Location server
         try { & .\mvnw.cmd -B -Paigc-app -DskipTests package; if ($LASTEXITCODE -ne 0) { throw 'AIGC app build failed.' } } finally { Pop-Location }
-        $taskJar = Join-Path $taskRoot 'server/target/server-0.0.1-SNAPSHOT.jar'
+        if (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue) { throw "Port $Port became occupied before app launch; no unrelated process was stopped." }
+        $taskJar = $taskExpectedJar
         $taskStarted = Start-Process -FilePath (Join-Path $JdkHome 'bin/java.exe') -ArgumentList @('-jar',('"'+$taskJar+'"')) -WorkingDirectory $taskRoot -WindowStyle Hidden -RedirectStandardOutput (Join-Path $taskLocal 'server.log') -RedirectStandardError (Join-Path $taskLocal 'server-error.log') -PassThru
         @{pid=$taskStarted.Id;jar=$taskJar;port=$Port;videoRecovery=[bool]$RecoverVideoTasks;seedance=[bool]$Seedance;paid=$false} | ConvertTo-Json | Set-Content -LiteralPath $taskPidFile -Encoding utf8
         $taskReady=$false
@@ -116,3 +169,4 @@ try {
         if ($RecoverVideoTasks) { Write-Output 'Existing SiliconFlow task query/archive recovery is enabled; new real submissions remain disabled.' }
     } finally { Pop-Location }
 } finally { foreach($taskName in $taskSaved.Keys) { [Environment]::SetEnvironmentVariable($taskName,$taskSaved[$taskName],'Process') } }
+} finally { foreach ($taskName in $taskDockerSaved.Keys) { [Environment]::SetEnvironmentVariable($taskName, $taskDockerSaved[$taskName], 'Process') } }

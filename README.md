@@ -35,11 +35,11 @@
 
 新增链路：创作需求 → 脚本与分镜确认 → 异步视频生成 → 私有产物归档 → 镜头版本选择 → 带字幕成片。支持 Mock、SiliconFlow 和 Seedance 视频适配器，默认启动关闭付费调用；密钥和本地数据库不随仓库发布。
 
-Seedance Mini 已验证 1 次真实文生视频、3 次真实图生视频，以及 15.146 秒带字幕成片。后端 117 项测试通过；账单核对、正式人工评分和历史 SiliconFlow 未知提交核实按用户要求移出本次验收范围，原始状态保留。
+Seedance Mini 已验证 1 次真实文生视频、3 次真实图生视频，以及 15.146 秒带字幕成片。后续代码审查补齐任务调度、超时恢复、跨分镜版本复用、本地草稿保护、项目搜索与归档、参考素材清理。最新验证见 [修复与扩展记录](docs/review-2026-10-04.md)；账单核对、正式人工评分和历史 SiliconFlow 未知提交核实按用户要求移出本次验收范围，原始状态保留。
 
 ![AIGC 视频创作工作台](docs/acceptance/seedance-real-workbench.jpg)
 
-[启动与演示说明](docs/creator-platform.md) · [Seedance 接入说明](docs/seedance-video.md) · [真实成片 MP4](docs/acceptance/seedance-film.mp4) · [脱敏验收记录](docs/acceptance/seedance-real.json)
+[启动与演示说明](docs/creator-platform.md) · [项目库与素材清理](docs/project-library.md) · [Seedance 接入说明](docs/seedance-video.md) · [真实成片 MP4](docs/acceptance/seedance-film.mp4) · [脱敏验收记录](docs/acceptance/seedance-real.json)
 
 ## 原项目预览
 

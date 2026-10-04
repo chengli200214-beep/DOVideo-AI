@@ -25,6 +25,19 @@ public class StoryboardController {
     public Result<StoryboardService.View> get(@RequestAttribute(AuthService.REQUEST_USER_ID) Long user, @PathVariable String id) throws Exception {
         return Result.ok(service.get(user, id));
     }
+    @GetMapping("/page")
+    public Result<StoryboardService.Page> page(@RequestAttribute(AuthService.REQUEST_USER_ID) Long user,
+            @RequestParam(defaultValue="") String q, @RequestParam(defaultValue="false") boolean archived,
+            @RequestParam(defaultValue="20") int limit, @RequestParam(required=false) Long beforeUpdatedAt,
+            @RequestParam(required=false) String beforeId) throws Exception {
+        return Result.ok(service.page(user, q, archived, limit, beforeUpdatedAt, beforeId));
+    }
+    @PostMapping("/{id}/archive")
+    public Result<StoryboardService.View> archive(@RequestAttribute(AuthService.REQUEST_USER_ID) Long user,
+            @PathVariable String id, @RequestBody ArchiveRequest input) throws Exception {
+        if (input == null || input.archived() == null) throw new IllegalArgumentException("请明确归档或恢复项目");
+        return Result.ok(service.archive(user, id, input.archived()));
+    }
     @GetMapping("/{id}/revisions")
     public Result<StoryboardService.History> history(@RequestAttribute(AuthService.REQUEST_USER_ID) Long user, @PathVariable String id) throws Exception {
         return Result.ok(service.history(user, id));
@@ -41,4 +54,5 @@ public class StoryboardController {
     }
     public record EditRequest(int expectedRevision, StoryboardDraft draft) { }
     public record ConfirmRequest(int expectedRevision) { }
+    public record ArchiveRequest(Boolean archived) { }
 }

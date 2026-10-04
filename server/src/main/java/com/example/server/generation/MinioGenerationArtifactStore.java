@@ -102,6 +102,12 @@ public class MinioGenerationArtifactStore implements GenerationArtifactStore {
 
     public String readableUrl(String key) { return urls.readableSource(urls.objectUrl(key)); }
 
+    public void removeReference(String key) throws Exception {
+        if (key == null || !key.startsWith("generation-inputs/") || key.contains(".."))
+            throw new IllegalArgumentException("只能清理参考素材");
+        minio.removeObject(io.minio.RemoveObjectArgs.builder().bucket(bucket).object(key).build());
+    }
+
     public void copyArtifact(String key, Path target) throws Exception {
         try (var input = minio.getObject(io.minio.GetObjectArgs.builder().bucket(bucket).object(key).build())) {
             copyBounded(input, target);

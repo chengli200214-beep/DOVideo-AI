@@ -35,12 +35,16 @@ public class FilmService {
             var project=lock(user,id); confirmed(project,input.revision());
             var draft=json.readValue(projects.revision(id,input.revision()).json(),StoryboardDraft.class);
             if(draft.shots().size()!=input.versionIds().size()) throw conflict("每个镜头必须选择一个生成版本");
+            Map<String,StoryboardDraft.Shot> currentShots=new HashMap<>();
+            for(var shot:draft.shots()) currentShots.put(shot.id(),shot);
             Map<String,FilmSpec.Clip> chosen=new HashMap<>();
             for(String version: input.versionIds()) {
-                var rows=jdbc.queryForList("SELECT * FROM shot_generation_versions WHERE id=? AND project_id=? AND revision=?",version,id,input.revision());
-                if(rows.isEmpty()) throw new NoSuchElementException("生成版本不属于当前项目和分镜");
+                var rows=jdbc.queryForList("SELECT * FROM shot_generation_versions WHERE id=? AND project_id=?",version,id);
+                if(rows.isEmpty()) throw new NoSuchElementException("生成版本不属于当前项目");
                 var row=rows.getFirst(); String shotId=(String)row.get("shot_id");
-                var shot=json.readValue((String)row.get("shot_json"),StoryboardDraft.Shot.class);
+                var savedShot=json.readValue((String)row.get("shot_json"),StoryboardDraft.Shot.class);
+                var shot=currentShots.get(shotId);
+                if(!ShotGenerationCompatibility.matches(savedShot,shot)) throw conflict("所选视频与当前镜头生成参数不一致，请重新生成该镜头");
                 var task=generation.get(user,(String)row.get("task_id"));
                 if(task.state()!=GenerationTask.State.SUCCEEDED || task.artifactKey()==null || task.artifactSize()==null || task.artifactSha256()==null) throw conflict("仅可选择已归档的镜头版本");
                 if(chosen.put(shotId,new FilmSpec.Clip(version,shotId,task.id(),shot.title(),shot.caption(),shot.narration(),task.artifactKey(),task.artifactSize(),task.artifactSha256()))!=null) throw conflict("同一镜头不能选择两个版本");
@@ -80,7 +84,11 @@ public class FilmService {
         var task=ownedTask(user,id,job); return new Detail(view(task),json.readValue(task.snapshotJson(),FilmSpec.class),compositions.events(job));
     }
     public View retry(long user,String id,String job) {
-        ownedTask(user,id,job); if(!compositions.retry(job,user,System.currentTimeMillis())) throw conflict("仅失败的合成任务可恢复"); return view(compositions.byId(job));
+        return transaction.execute(tx -> {
+            lock(user,id); ownedTask(user,id,job);
+            if(!compositions.retry(job,user,System.currentTimeMillis())) throw conflict("仅失败的合成任务可恢复");
+            return view(compositions.byId(job));
+        });
     }
     public String artifact(long user,String id,String job) {
         var task=ownedTask(user,id,job); if(!task.state().equals("SUCCEEDED") || task.artifactKey()==null) throw conflict("成片尚未归档完成"); return artifacts.readableUrl(task.artifactKey());
@@ -94,9 +102,9 @@ public class FilmService {
         if(rows.isEmpty()) return null; var row=rows.getFirst(); return new Selection(((Number)row.get("selection_version")).intValue(),json.readValue((String)row.get("snapshot_json"),FilmSpec.class),((Number)row.get("created_at")).longValue());
     }
     private StoryboardRepository.Project owned(long user,String id) { var project=projects.byId(id,user); if(project==null) throw new NoSuchElementException("创作项目不存在"); return project; }
-    private StoryboardRepository.Project lock(long user,String id) { if(jdbc.queryForList("SELECT id FROM creative_projects WHERE id=? AND user_id=? FOR UPDATE",id,user).isEmpty()) throw new NoSuchElementException("创作项目不存在"); return owned(user,id); }
+    private StoryboardRepository.Project lock(long user,String id) { if(jdbc.queryForList("SELECT id FROM creative_projects WHERE id=? AND user_id=? FOR UPDATE",id,user).isEmpty()) throw new NoSuchElementException("创作项目不存在"); var project=owned(user,id); StoryboardRepository.requireActive(project); return project; }
     private CompositionRepository.Task ownedTask(long user,String id,String job) { owned(user,id); var task=compositions.byId(job); if(task==null || task.userId()!=user || !task.projectId().equals(id)) throw new NoSuchElementException("合成任务不存在"); return task; }
-    private void confirmed(StoryboardRepository.Project project,int revision) { if(!"CONFIRMED".equals(project.status()) || project.latestRevision()!=revision || !Objects.equals(project.confirmedRevision(),revision)) throw conflict("仅可合成当前已确认的分镜"); }
+    private void confirmed(StoryboardRepository.Project project,int revision) { StoryboardRepository.requireActive(project); if(!"CONFIRMED".equals(project.status()) || project.latestRevision()!=revision || !Objects.equals(project.confirmedRevision(),revision)) throw conflict("仅可合成当前已确认的分镜"); }
     private View view(CompositionRepository.Task task) { return new View(task.id(),task.state(),task.attempts(),task.errorCode(),task.artifactSize(),task.artifactSha256(),task.metadataJson(),task.createdAt(),task.updatedAt()); }
     private static BusinessException conflict(String message) { return new BusinessException(ErrorCode.CONFLICT,message); }
     private interface Work<T> { T run(Object tx) throws Exception; }

@@ -1,18 +1,23 @@
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { createSubmissionIntent } from './generationWorkspace.js'
+import { createReadPolling } from './readPolling.js'
+
+export function reusableFilmVersion(version, revision) {
+  return version.task.state === 'SUCCEEDED' && (version.compatible === true || (version.compatible == null && version.revision === revision))
+}
 
 export function completeFilmSelection(project, versions, choices) {
   return project.revision.draft.shots.map(shot => {
     const id = choices[shot.id]
-    if (!(versions || []).some(v => v.id === id && v.shotId === shot.id && v.revision === project.revision.number && v.task.state === 'SUCCEEDED')) throw new Error('请为每个镜头选择一个已完成的当前分镜版本')
+    if (!(versions || []).some(v => v.id === id && v.shotId === shot.id && reusableFilmVersion(v, project.revision.number))) throw new Error('请为每个镜头选择一个与当前分镜兼容的已完成版本')
     return id
   })
 }
-export function useFilmWorkspace({ user, project, dirty, versions, request, captureSession, storage, newKey, digest, schedule = setTimeout, cancel = clearTimeout }) {
+export function useFilmWorkspace({ user, project, dirty, versions, request, captureSession, storage, newKey, digest, schedule = setTimeout, cancel = clearTimeout, eventTarget }) {
   const films = ref(null), report = ref(null), cases = ref([]), runtime = ref(null), choices = ref({}), burnCaptions = ref(true)
   const busy = ref(false), loading = ref(false), error = ref(''), notice = ref(''), artifact = ref(null)
-  let epoch = 0, sequence = 0, timer = null, intent = null
-  const confirmed = computed(() => !dirty.value && project.value?.status === 'CONFIRMED' && project.value.confirmedRevision === project.value.revision.number)
+  let epoch = 0, sequence = 0, intent = null, retryFullRead = false
+  const confirmed = computed(() => !dirty.value && !project.value?.archived && project.value?.status === 'CONFIRMED' && project.value.confirmedRevision === project.value.revision.number)
   const selectionDirty = computed(() => {
     const saved = films.value?.selection
     return !saved || saved.snapshot.revision !== project.value.revision.number || JSON.stringify(saved.snapshot.clips.map(c => c.versionId)) !== JSON.stringify(project.value.revision.draft.shots.map(s => choices.value[s.id]))
@@ -21,8 +26,8 @@ export function useFilmWorkspace({ user, project, dirty, versions, request, capt
     try { completeFilmSelection(project.value, versions.value, choices.value); return confirmed.value } catch { return false }
   })
   function guard() { const revision = epoch, owner = user.value?.id, id = project.value?.id, session = captureSession(); return () => revision === epoch && owner === user.value?.id && id === project.value?.id && !!owner && session() }
-  function stop() { if (timer !== null) cancel(timer); timer = null }
-  function poll() { stop(); if (films.value?.tasks.some(t => ['QUEUED', 'RENDERING'].includes(t.state))) timer = schedule(() => { timer = null; refresh(false) }, 5000) }
+  const polling = createReadPolling({ refresh: () => refresh(retryFullRead), active: () => films.value?.tasks.some(t => ['QUEUED', 'RENDERING'].includes(t.state)), allowed: () => !!user.value && !!project.value, schedule, cancel, eventTarget })
+  const stop = polling.stop, poll = polling.succeeded
   async function refresh(full = true) {
     if (!user.value || !project.value) return
     const current = guard(), seq = ++sequence, base = `/generation/projects/${project.value.id}`
@@ -31,6 +36,7 @@ export function useFilmWorkspace({ user, project, dirty, versions, request, capt
       const result = await request(`${base}/films`)
       if (!current() || seq !== sequence) return
       films.value = result
+      error.value = ''
       if (!Object.keys(choices.value).length && result.selection?.snapshot.revision === project.value.revision.number) for (const clip of result.selection.snapshot.clips) choices.value[clip.shotId] = clip.versionId
       defaults()
       if (full) {
@@ -43,18 +49,19 @@ export function useFilmWorkspace({ user, project, dirty, versions, request, capt
           cases.value = fixed; runtime.value = tools
         }
       }
-      if (current() && seq === sequence) poll()
-    } catch (failure) { if (current() && seq === sequence) error.value = `${failure.message}；可手动刷新` }
+      if (current() && seq === sequence) { retryFullRead = false; poll() }
+    } catch (failure) { if (current() && seq === sequence) { retryFullRead = full; error.value = `${failure.message}；${polling.failed(failure) ? '将自动重试查询' : '可手动刷新'}` } }
     finally { if (current() && seq === sequence) loading.value = false }
   }
   function defaults() {
     for (const shot of project.value?.revision.draft.shots || []) if (!choices.value[shot.id]) {
-      const options = (versions.value || []).filter(v => v.revision === project.value.revision.number && v.shotId === shot.id && v.task.state === 'SUCCEEDED').sort((a, b) => b.version - a.version)
+      const options = (versions.value || []).filter(v => v.shotId === shot.id && reusableFilmVersion(v, project.value.revision.number)).sort((a, b) => b.revision - a.revision || b.version - a.version)
       if (options.length) choices.value[shot.id] = options[0].id
     }
   }
   async function action(work, message) {
     if (busy.value || loading.value || !user.value || !project.value) return
+    if (project.value.archived) { error.value = '项目已归档，请先恢复项目再修改或恢复任务'; return }
     const current = guard(); sequence += 1; busy.value = true; stop(); error.value = ''; notice.value = ''
     try { const result = await work(current); if (!current()) return; notice.value = message; await refresh(); return result }
     catch (failure) { if (current()) { error.value = failure.message; poll() } }
@@ -88,11 +95,11 @@ export function useFilmWorkspace({ user, project, dirty, versions, request, capt
   }
   watch(versions, defaults, { deep: true })
   watch(() => [user.value?.id, project.value?.id, project.value?.revision.number], () => {
-    epoch += 1; sequence += 1; stop(); films.value = null; report.value = null; cases.value = []; runtime.value = null; choices.value = {}; artifact.value = null
+    epoch += 1; sequence += 1; polling.reset(); retryFullRead = false; films.value = null; report.value = null; cases.value = []; runtime.value = null; choices.value = {}; artifact.value = null
     busy.value = false; loading.value = false; error.value = ''; notice.value = ''
     intent = user.value && project.value ? createSubmissionIntent({ storage, scope: `film:${user.value.id}:${project.value.id}`, newKey, digest }) : null
     if (user.value && project.value) refresh()
   }, { immediate: true })
-  onScopeDispose(() => { epoch += 1; stop() })
+  onScopeDispose(() => { epoch += 1; polling.dispose() })
   return { films, report, cases, runtime, choices, burnCaptions, busy, loading, error, notice, artifact, confirmed, selectionDirty, ready, refresh, saveSelection, compose, retry, review, preview }
 }

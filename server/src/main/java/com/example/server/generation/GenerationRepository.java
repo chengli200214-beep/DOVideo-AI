@@ -14,6 +14,7 @@ import static com.example.server.generation.GenerationTask.State;
 /** State, trace and spending reservations commit together. No transaction spans a network call. */
 @Repository
 public class GenerationRepository {
+    static final long POLL_WINDOW_MS = 24 * 60 * 60 * 1000L;
     private final JdbcTemplate jdbc;
     private final TransactionTemplate transaction;
     private final RowMapper<GenerationTask> mapper = (rs, row) -> new GenerationTask(
@@ -23,7 +24,8 @@ public class GenerationRepository {
             rs.getString("artifact_key"), rs.getObject("artifact_size", Long.class),
             rs.getString("artifact_sha256"), rs.getString("error_code"), rs.getInt("attempts"),
             rs.getBoolean("recoverable"), rs.getLong("next_run_at"), rs.getString("lease_token"),
-            rs.getLong("lease_until"), rs.getLong("created_at"), rs.getLong("updated_at"));
+            rs.getLong("lease_until"), rs.getLong("created_at"), rs.getLong("updated_at"),
+            rs.getObject("submitted_at", Long.class), rs.getObject("poll_deadline_at", Long.class));
 
     public GenerationRepository(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
@@ -37,6 +39,7 @@ public class GenerationRepository {
     public void insert(String id, long user, String key, String hash, String provider,
                        String model, String json, String originalPrompt, long now) {
         transaction.executeWithoutResult(status -> {
+            GenerationAssetReferences.attach(jdbc, user, "TASK", id, json);
             jdbc.update("""
                 INSERT INTO generation_tasks
                 (id,user_id,idempotency_key,request_hash,provider,model,request_json,original_prompt,state,next_run_at,created_at,updated_at)
@@ -65,11 +68,23 @@ public class GenerationRepository {
     public GenerationTask claim(String id, long now) {
         String token = UUID.randomUUID().toString();
         int changed = jdbc.update("""
-                UPDATE generation_tasks SET lease_token=?,lease_until=?,updated_at=?
+                UPDATE generation_tasks SET lease_token=?,lease_until=?,updated_at=?,
+                poll_deadline_at=CASE WHEN state IN ('RUNNING','SAVING')
+                    THEN COALESCE(poll_deadline_at,?) ELSE poll_deadline_at END
                 WHERE id=? AND lease_until<=? AND next_run_at<=?
                 AND state IN ('QUEUED','SUBMITTING','RUNNING','SAVING')
-                """, token, now + 300_000, now, id, now, now);
+                """, token, now + 300_000, now, now + POLL_WINDOW_MS, id, now, now);
         return changed == 1 ? byId(id) : null;
+    }
+
+    /** A paused provider must not occupy every slot in the due batch on each scheduler tick. */
+    public boolean deferUnavailable(GenerationTask candidate, long now) {
+        return jdbc.update("""
+                UPDATE generation_tasks SET next_run_at=?,updated_at=?
+                WHERE id=? AND state=? AND next_run_at=? AND updated_at=? AND lease_until<=?
+                AND state IN ('QUEUED','SUBMITTING','RUNNING','SAVING')
+                """, now + 60_000, now, candidate.id(), candidate.state().name(), candidate.nextRunAt(),
+                candidate.updatedAt(), now) == 1;
     }
 
     public boolean beginSubmission(GenerationTask task, long now) {
@@ -78,9 +93,10 @@ public class GenerationRepository {
     public boolean beginSubmission(GenerationTask task, long now, String effectiveJson, GenerationProperties props) {
         return transaction.execute(status -> {
             int changed = jdbc.update("""
-                UPDATE generation_tasks SET state='SUBMITTING',updated_at=?,effective_json=?
+                UPDATE generation_tasks SET state='SUBMITTING',updated_at=?,effective_json=?,
+                submitted_at=?,poll_deadline_at=?
                 WHERE id=? AND state='QUEUED' AND lease_token=? AND lease_until>?
-                """, now, effectiveJson, task.id(), task.leaseToken(), now);
+                """, now, effectiveJson, now, now + POLL_WINDOW_MS, task.id(), task.leaseToken(), now);
             if (changed != 1) return false;
             if (!task.provider().equals("mock")) {
                 if (props == null) throw new IllegalArgumentException("Paid submission requires an authorization");
@@ -136,11 +152,12 @@ public class GenerationRepository {
 
     public boolean retry(String id, long user, long now) {
         return transaction.execute(status -> {
+            lockActiveProjectForTask(id, user);
             int changed = jdbc.update("""
                 UPDATE generation_tasks SET state='RUNNING',attempts=0,error_code=NULL,recoverable=FALSE,
-                next_run_at=?,updated_at=? WHERE id=? AND user_id=? AND state='FAILED'
+                next_run_at=?,updated_at=?,poll_deadline_at=? WHERE id=? AND user_id=? AND state='FAILED'
                 AND recoverable=TRUE AND remote_id IS NOT NULL AND lease_until<=?
-                """, now, now, id, user, now);
+                """, now, now, now + POLL_WINDOW_MS, id, user, now);
             if (changed == 1) event(id, State.RUNNING, "MANUAL_RETRY", 0, now);
             return changed == 1;
         });
@@ -148,14 +165,27 @@ public class GenerationRepository {
 
     public boolean reconcile(String id, long user, String remoteId, long now) {
         return transaction.execute(status -> {
+            lockActiveProjectForTask(id, user);
             int changed = jdbc.update("""
                 UPDATE generation_tasks SET state='RUNNING',remote_id=?,attempts=0,error_code=NULL,
-                next_run_at=?,updated_at=? WHERE id=? AND user_id=? AND state='SUBMISSION_UNKNOWN'
+                next_run_at=?,updated_at=?,poll_deadline_at=? WHERE id=? AND user_id=? AND state='SUBMISSION_UNKNOWN'
                 AND lease_until<=?
-                """, remoteId, now, now, id, user, now);
+                """, remoteId, now, now, now + POLL_WINDOW_MS, id, user, now);
             if (changed == 1) event(id, State.RUNNING, "REMOTE_ID_RECONCILED", 0, now);
             return changed == 1;
         });
+    }
+
+    private void lockActiveProjectForTask(String id, long user) {
+        var projects = jdbc.queryForList("SELECT project_id FROM shot_generation_versions WHERE task_id=?", String.class, id);
+        if (projects.isEmpty()) return; // Standalone generation tasks have no project lifecycle.
+        // Association is immutable. Lock its project before updating the task, matching shot submission/archive.
+        var locked = jdbc.queryForList("SELECT archived_at FROM creative_projects WHERE id=? AND user_id=? FOR UPDATE",
+                projects.getFirst(), user);
+        if (locked.isEmpty()) throw new java.util.NoSuchElementException("创作项目不存在");
+        if (locked.getFirst().get("archived_at") != null)
+            throw new com.example.server.exception.BusinessException(com.example.server.common.ErrorCode.CONFLICT,
+                    "项目已归档，请恢复后再编辑或生成");
     }
 
     public java.util.Map<String, Object> details(String id) {

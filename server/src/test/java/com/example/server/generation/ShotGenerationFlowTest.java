@@ -158,6 +158,21 @@ class ShotGenerationFlowTest {
         assertEquals(0, count("generation_tasks")); assertEquals(0, count("generation_reservations"));
         assertEquals(0, paidService.overview(1, project.id()).budget().usedVersions()); verify(paid, never()).submit(any(), any());
     }
+    @Test void editingRevisionCannotBypassActiveOrUnknownEarlierShotSubmissions() throws Exception {
+        ready(6);
+        String shotId=ids().getFirst();
+        var original=service.submit(1,project.id(),"original",input("INITIAL",List.of(shotId))).versions().getFirst();
+        storyboard.service.edit(1,project.id(),1,storyboard.change(project.revision().draft(),"changed while the original task is pending"));
+        storyboard.service.confirm(1,project.id(),2);
+        for(var state:List.of(QUEUED,SUBMITTING,RUNNING,SAVING,SUBMISSION_UNKNOWN)) {
+            flow.jdbc.update("UPDATE generation_tasks SET state=? WHERE id=?",state.name(),original.task().id());
+            for(String mode:List.of("INITIAL","REGENERATE")) {
+                assertThrows(BusinessException.class,()->service.submit(1,project.id(),mode+state.name(),new ShotGenerationService.SubmitInput(2,List.of(shotId),mode)));
+            }
+        }
+        assertEquals(1,count("generation_tasks")); assertEquals(1,service.overview(1,project.id()).budget().usedVersions());
+        verify(flow.provider,never()).submit(any(),any());
+    }
     @Test void paidBudgetIsConservativeAndAuthorizationChangesAreBlockedBeforeAnyProviderCall() throws Exception {
         ready(3);
         flow.properties.setProvider("siliconflow"); flow.properties.setPaidEnabled(true);

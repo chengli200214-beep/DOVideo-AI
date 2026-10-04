@@ -6,6 +6,7 @@ import com.example.server.config.WebConfig;
 import com.example.server.controller.ApiExceptionHandler;
 import com.example.server.controller.GenerationController;
 import com.example.server.controller.GenerationInputController;
+import com.example.server.controller.GenerationAssetLibraryController;
 import com.example.server.controller.StoryboardController;
 import com.example.server.controller.ShotGenerationController;
 import com.example.server.storyboard.ShotGenerationService;
@@ -76,6 +77,7 @@ class GenerationInfrastructureIT {
     @Import({GenerationRepository.class, GenerationProperties.class, MockGenerationProvider.class,
             GenerationService.class, GenerationWorker.class, GenerationSchedulingConfig.class,
             GenerationAssetService.class, GenerationInputController.class,
+            GenerationAssetLifecycleService.class, GenerationAssetLibraryController.class,
             StoryboardController.class, StoryboardRepository.class, StoryboardService.class, TemplateStoryboardPlanner.class,
             StoryboardModelProperties.class,StoryboardModelRepository.class,StoryboardModelService.class,DeepSeekStoryboardPlanner.class,StoryboardModelWorker.class,StoryboardModelController.class,
             ShotGenerationService.class, ShotGenerationController.class,
@@ -107,6 +109,8 @@ class GenerationInfrastructureIT {
                 "--minio.secretKey=" + required("GENERATION_IT_MINIO_PASSWORD"),
                 "--minio.bucketName=generation-it",
                 "--generation.provider=mock", "--generation.paid-enabled=false", "--generation.api-key=",
+                "--generation.recovery-enabled=false", "--generation.seedance.recovery-enabled=false",
+                "--generation.seedance.api-key=", "--storyboard.model.paid-enabled=false", "--storyboard.model.api-key=",
                 "--generation.worker-delay-ms=100",
                 "--generation.worker-initial-delay-ms=" + (paused ? "600000" : "0")
                 , "--spring.task.scheduling.pool.size=3", "--composition.worker-delay-ms=100",
@@ -146,12 +150,12 @@ class GenerationInfrastructureIT {
 
         try (var first = start(true)) {
             JdbcTemplate jdbc = first.getBean(JdbcTemplate.class);
-            assertEquals(9, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=TRUE AND type='SQL'", Integer.class));
+            assertEquals(11, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=TRUE AND type='SQL'", Integer.class));
             assertEquals("ascii_bin", jdbc.queryForObject("""
                     SELECT COLLATION_NAME FROM information_schema.columns
                     WHERE table_schema=DATABASE() AND table_name='generation_tasks' AND column_name='idempotency_key'
                     """, String.class));
-            passed.add("Real MySQL Flyway V1-V9 migrations and case-sensitive idempotency collation");
+            passed.add("Real MySQL Flyway V1-V11 migrations and case-sensitive idempotency collation");
             token = registerAndLogin("owner_" + run);
             otherToken = registerAndLogin("other_" + run);
             request("GET", "/generation/tasks/missing", null, null, null, 401);
@@ -401,12 +405,150 @@ class GenerationInfrastructureIT {
             assertEquals(4,third.getBean(JdbcTemplate.class).queryForObject("SELECT COUNT(*) FROM shot_generation_versions WHERE project_id=?",Integer.class,shotProject));
             passed.add("Queued composition survives restart and executes real FFmpeg normalization, Chinese subtitle burn-in, audio padding and concat; private H.264 MP4 metadata, SHA-256 and owner-only streaming download verified without creating model tasks");
             passed.add("Human-review idempotency, ownership, all-version denominator and Mock labeling persist across restart; authenticated JSON and formula-safe CSV exports verified");
+            verifyProjectLibrary(third, token, otherToken, run, shotProject, filmBase);
+            verifyAssetCleanup(third, token, otherToken, referenceImage);
+            verifyCanonicalLoginThrottle(third, token, run);
             passed.add("Video provider=mock; video and DeepSeek paid gates are closed in all server instances");
         }
 
         Files.createDirectories(Path.of("target"));
         Files.writeString(Path.of("target/generation-infrastructure-acceptance.json"), json.writerWithDefaultPrettyPrinter()
                 .writeValueAsString(Map.of("result", "PASS", "checks", passed, "modelProvider", "mock", "paidCalls", 0)), StandardCharsets.UTF_8);
+    }
+
+    private void verifyProjectLibrary(ServletWebServerApplicationContext context, String token, String otherToken,
+                                      String run, String completedProject, String filmBase) throws Exception {
+        String prefix = "library" + run;
+        var created = new ArrayList<String>();
+        for (String suffix : List.of(" literal%_!", " literalXa!", " third")) {
+            var brief = new CreativeBrief(prefix + suffix, "验证项目库", "测试产品", List.of("易用"),
+                    "自然光", 10, "9:16", null, 2);
+            created.add(request("POST", "/generation/projects", json.writeValueAsString(brief), token,
+                    "library-" + created.size() + "-" + run, 201).path("data").path("project").path("id").asText());
+        }
+        // Equal timestamps exercise the UUID tie-breaker rather than relying on request timing.
+        var jdbc = context.getBean(JdbcTemplate.class);
+        long tiedTime = System.currentTimeMillis();
+        for (String id : created) jdbc.update("UPDATE creative_projects SET updated_at=? WHERE id=?", tiedTime, id);
+        String pageBase = "/generation/projects/page?q=" + encode(prefix) + "&limit=1";
+        String cursor = "";
+        var seen = new java.util.HashSet<String>();
+        for (int index = 0; index < created.size(); index++) {
+            var page = request("GET", pageBase + cursor, null, token, null, 200).path("data");
+            assertEquals(1, page.path("items").size());
+            assertTrue(seen.add(page.path("items").get(0).path("id").asText()));
+            var next = page.path("nextCursor");
+            if (index == created.size() - 1) assertTrue(next.isNull());
+            else {
+                assertFalse(next.isNull());
+                cursor = "&beforeUpdatedAt=" + next.path("updatedAt").asLong() + "&beforeId=" + next.path("id").asText();
+            }
+        }
+        assertEquals(new java.util.HashSet<>(created), seen);
+        var literal = request("GET", "/generation/projects/page?q=" + encode(prefix + " literal%_!"),
+                null, token, null, 200).path("data").path("items");
+        assertEquals(1, literal.size());
+        assertEquals(created.getFirst(), literal.get(0).path("id").asText());
+        assertEquals(0, request("GET", pageBase, null, otherToken, null, 200).path("data").path("items").size());
+
+        String archivePath = "/generation/projects/" + completedProject + "/archive";
+        request("POST", archivePath, "{\"archived\":true}", otherToken, null, 404);
+        assertTrue(request("POST", archivePath, "{\"archived\":true}", token, null, 200).path("data").path("archived").asBoolean());
+        String byId = "/generation/projects/page?q=" + completedProject;
+        assertEquals(0, request("GET", byId, null, token, null, 200).path("data").path("items").size());
+        assertEquals(1, request("GET", byId + "&archived=true", null, token, null, 200).path("data").path("items").size());
+        assertTrue(request("GET", "/generation/projects/" + completedProject, null, token, null, 200)
+                .path("data").path("archived").asBoolean());
+        assertFalse(request("GET", filmBase + "/artifact", null, token, null, 200).path("data").asText().isBlank());
+        request("POST", "/generation/projects/" + completedProject + "/confirm", "{\"expectedRevision\":1}", token, null, 409);
+        assertFalse(request("POST", archivePath, "{\"archived\":false}", token, null, 200).path("data").path("archived").asBoolean());
+        assertEquals(1, request("GET", byId, null, token, null, 200).path("data").path("items").size());
+        passed.add("Real MySQL project library paginates equal timestamps without duplicates, treats %/_/! search characters literally, enforces ownership, and archives/restores a completed project while preserving readable films");
+    }
+
+    private void verifyAssetCleanup(ServletWebServerApplicationContext context, String token, String otherToken,
+                                    String protectedId) throws Exception {
+        request("DELETE", "/generation/assets/" + protectedId, null, otherToken, null, 404);
+        request("DELETE", "/generation/assets/" + protectedId, null, token, null, 409);
+        var pixels = new java.awt.image.BufferedImage(2, 3, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        pixels.setRGB(0, 0, 0x663399);
+        var png = new java.io.ByteArrayOutputStream();
+        assertTrue(javax.imageio.ImageIO.write(pixels, "png", png));
+        var unused = uploadImage(token, png.toByteArray()).path("data");
+        String id = unused.path("id").asText(), key = unused.path("objectKey").asText();
+        assertNotEquals(protectedId, id);
+        var minio = context.getBean(MinioClient.class);
+        assertEquals(png.size(), minio.statObject(io.minio.StatObjectArgs.builder().bucket("generation-it").object(key).build()).size());
+        var page = request("GET", "/generation/assets?limit=20", null, token, null, 200).path("data").path("items");
+        boolean foundUnused = false, foundProtected = false;
+        for (var item : page) {
+            if (item.path("asset").path("id").asText().equals(id)) {
+                foundUnused = true;
+                assertFalse(item.path("referenced").asBoolean());
+            }
+            if (item.path("asset").path("id").asText().equals(protectedId)) {
+                foundProtected = true;
+                assertTrue(item.path("referenced").asBoolean());
+            }
+        }
+        assertTrue(foundUnused && foundProtected);
+        request("DELETE", "/generation/assets/" + id, null, otherToken, null, 404);
+        assertEquals(id, request("DELETE", "/generation/assets/" + id, null, token, null, 200).path("data").path("id").asText());
+        assertEquals(id, request("DELETE", "/generation/assets/" + id, null, token, null, 200).path("data").path("id").asText());
+        request("GET", "/generation/assets/" + id, null, token, null, 404);
+        context.getBean(GenerationAssetLifecycleService.class).cleanupDue();
+        long deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos();
+        String state = "";
+        do {
+            for (var cleanup : request("GET", "/generation/assets/cleanup", null, token, null, 200).path("data")) {
+                if (cleanup.path("id").asText().equals(id)) state = cleanup.path("state").asText();
+            }
+            if (state.equals("SUCCEEDED")) break;
+            assertNotEquals("FAILED", state);
+            Thread.sleep(100);
+        } while (System.nanoTime() < deadline);
+        assertEquals("SUCCEEDED", state);
+        for (var object : minio.listObjects(ListObjectsArgs.builder().bucket("generation-it").prefix(key).recursive(true).build())) {
+            assertNotEquals(key, object.get().objectName());
+        }
+        assertEquals("SUCCEEDED", request("DELETE", "/generation/assets/" + id, null, token, null, 200).path("data").path("state").asText());
+        assertEquals(1, context.getBean(JdbcTemplate.class).queryForObject("SELECT COUNT(*) FROM generation_asset_cleanup WHERE id=?", Integer.class, id));
+        request("GET", "/generation/assets/" + protectedId + "/preview", null, token, null, 200);
+        passed.add("Real MinIO unused-reference deletion is owner-scoped and idempotent, persisted cleanup reaches SUCCEEDED and removes the object, while project/task references remain protected with HTTP 409 and stay readable");
+    }
+
+    private void verifyCanonicalLoginThrottle(ServletWebServerApplicationContext context, String ownerToken,
+                                              String run) throws Exception {
+        String username = "Throttle_" + run;
+        registerAndLogin(username);
+        for (int attempt = 0; attempt < 8; attempt++) {
+            String spelling = attempt % 2 == 0 ? username.toUpperCase(java.util.Locale.ROOT) : username.toLowerCase(java.util.Locale.ROOT);
+            String body = json.writeValueAsString(Map.of("username", spelling, "password", "wrong-password"));
+            request("POST", "/user/login", body, null, null, 401);
+        }
+        var redis = context.getBean(org.springframework.data.redis.core.StringRedisTemplate.class);
+        String canonicalKey = "auth:login-failures:" + username.toLowerCase(java.util.Locale.ROOT);
+        assertEquals("8", redis.opsForValue().get(canonicalKey));
+        assertNull(redis.opsForValue().get("auth:login-failures:" + username.toUpperCase(java.util.Locale.ROOT)));
+        Long ttl = redis.getExpire(canonicalKey, java.util.concurrent.TimeUnit.MILLISECONDS);
+        assertNotNull(ttl);
+        assertTrue(ttl > 0 && ttl <= Duration.ofMinutes(10).toMillis());
+        String valid = json.writeValueAsString(Map.of("username", username.toUpperCase(java.util.Locale.ROOT),
+                "password", "integration-test-only-password"));
+        request("POST", "/user/login", valid, null, null, 429);
+        assertEquals("8", redis.opsForValue().get(canonicalKey));
+        // Shorten only this disposable test account's TTL to exercise expiration without a ten-minute sleep.
+        assertTrue(Boolean.TRUE.equals(redis.expire(canonicalKey, Duration.ofMillis(150))));
+        long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+        while (Boolean.TRUE.equals(redis.hasKey(canonicalKey)) && System.nanoTime() < deadline) Thread.sleep(25);
+        assertFalse(Boolean.TRUE.equals(redis.hasKey(canonicalKey)));
+        assertFalse(request("POST", "/user/login", valid, null, null, 200).path("data").path("token").asText().isBlank());
+        request("GET", "/generation/tasks", null, ownerToken, null, 200);
+        passed.add("Real Redis Lua records eight mixed-case login failures under one canonical key with an expiring TTL; all case variants are blocked until expiry, then login resumes without affecting the project owner's session");
+    }
+
+    private static String encode(String value) {
+        return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
     private JsonNode waitFor(String token, String id, String state) throws Exception {
@@ -477,13 +619,24 @@ class GenerationInfrastructureIT {
         approval.setReservationPerTask(new java.math.BigDecimal("6"));
         String first = UUID.randomUUID().toString(), second = UUID.randomUUID().toString();
         long now = System.currentTimeMillis();
-        // Future due time keeps these synthetic records out of scheduled model workers.
-        for (String id : List.of(first, second)) {
-            repository.insert(id, 1, id, "offline", "offline-database-policy", "offline-contract-model", "{}", now + 600_000);
-            jdbc.update("UPDATE generation_tasks SET next_run_at=0 WHERE id=?", id);
-        }
-        var a = repository.claim(first, now);
-        var b = repository.claim(second, now);
+        var transaction = new org.springframework.transaction.support.TransactionTemplate(
+                new org.springframework.jdbc.datasource.DataSourceTransactionManager(jdbc.getDataSource()));
+        // Publish synthetic records only after both leases exist. Otherwise the live scheduler can
+        // legitimately defer an unsupported provider between INSERT and this test's claim.
+        var claimedTasks = transaction.execute(status -> {
+            var claims = new ArrayList<GenerationTask>();
+            for (String id : List.of(first, second)) {
+                long claimTime = System.currentTimeMillis();
+                repository.insert(id, 1, id, "offline", "offline-database-policy", "offline-contract-model", "{}", claimTime);
+                var claimed = repository.claim(id, claimTime);
+                assertNotNull(claimed, "Synthetic reservation task must be leased before becoming visible");
+                claims.add(claimed);
+            }
+            return List.copyOf(claims);
+        });
+        assertNotNull(claimedTasks);
+        var a = claimedTasks.get(0);
+        var b = claimedTasks.get(1);
         CountDownLatch start = new CountDownLatch(1);
         try (var pool = Executors.newFixedThreadPool(2)) {
             var f = pool.submit(() -> reserveAfter(start, repository, a, approval));
@@ -521,7 +674,7 @@ class GenerationInfrastructureIT {
     }
     private String required(String key) {
         String value = System.getenv(key);
-        if (value == null || value.isBlank()) throw new IllegalStateException("Run scripts/test-generation-infrastructure.ps1; missing " + key);
+        if (value == null || value.isBlank()) throw new IllegalStateException("Run scripts/test-generation-infrastructure.ps1 (Windows) or scripts/test-generation-infrastructure.sh (Linux); missing " + key);
         return value;
     }
 }

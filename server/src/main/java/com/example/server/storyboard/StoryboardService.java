@@ -70,6 +70,24 @@ public class StoryboardService {
         }
         return summaries;
     }
+    public Page page(long user, String query, boolean archived, int limit, Long beforeTime, String beforeId) throws Exception {
+        String search = query == null ? "" : query.trim();
+        if (search.length() > 120 || limit < 1 || limit > 50 || (beforeTime == null) != (beforeId == null)
+                || (beforeTime != null && (beforeTime < 0 || !beforeId.matches("[a-fA-F0-9-]{36}"))))
+            throw new IllegalArgumentException("项目查询参数不合法");
+        var rows = repository.page(user, search, archived, limit + 1, beforeTime, beforeId);
+        var items = new ArrayList<LibraryItem>();
+        for (var row : rows.stream().limit(limit).toList()) {
+            var brief = json.readValue(row.briefJson(), CreativeBrief.class);
+            items.add(new LibraryItem(row.id(), brief.title(), row.status(), row.latestRevision(), row.updatedAt(), row.archivedAt() != null));
+        }
+        var last = items.isEmpty() ? null : items.getLast();
+        return new Page(items, rows.size() > limit ? new Cursor(last.updatedAt(), last.id()) : null);
+    }
+    public View archive(long user, String id, boolean archived) throws Exception {
+        repository.archive(user, id, archived, System.currentTimeMillis());
+        return get(user, id);
+    }
     public History history(long user, String id) throws Exception {
         owned(user, id);
         List<Revision> revisions = new ArrayList<>();
@@ -82,6 +100,7 @@ public class StoryboardService {
     public View edit(long user, String id, int expected, StoryboardDraft input) throws Exception {
         checkExpected(expected);
         var project = owned(user, id);
+        StoryboardRepository.requireActive(project);
         var brief = normalizeBrief(user, json.readValue(project.briefJson(), CreativeBrief.class));
         List<String> errors = validate(user, brief, input, false);
         if (!errors.isEmpty()) throw new IllegalArgumentException(String.join("；", errors));
@@ -103,6 +122,7 @@ public class StoryboardService {
     public View confirm(long user, String id, int expected) throws Exception {
         checkExpected(expected);
         var project = owned(user, id);
+        StoryboardRepository.requireActive(project);
         if (project.latestRevision() != expected) throw conflict("仅可确认当前分镜版本");
         var draft = json.readValue(repository.revision(id, expected).json(), StoryboardDraft.class);
         var errors = validate(user, normalizeBrief(user, json.readValue(project.briefJson(), CreativeBrief.class)), draft, false);
@@ -121,7 +141,7 @@ public class StoryboardService {
     }
     private View view(StoryboardRepository.Project project, StoryboardRepository.Revision current) throws Exception {
         return new View(project.id(), project.status(), json.readValue(project.briefJson(), CreativeBrief.class), revision(current),
-                project.confirmedRevision(), project.createdAt(), project.updatedAt());
+                project.confirmedRevision(), project.createdAt(), project.updatedAt(), project.archivedAt() != null);
     }
     private Revision revision(StoryboardRepository.Revision revision) throws Exception {
         return new Revision(revision.number(), revision.parent(), revision.origin(), revision.planner(),
@@ -199,9 +219,12 @@ public class StoryboardService {
     private static void checkExpected(int number) { if (number < 1 || number == Integer.MAX_VALUE) throw new IllegalArgumentException("分镜版本号不合法"); }
     private static BusinessException conflict(String message) { return new BusinessException(ErrorCode.CONFLICT, message); }
     public record Created(View project, boolean reused) { }
-    public record View(String id, String status, CreativeBrief brief, Revision revision, Integer confirmedRevision, long createdAt, long updatedAt) { }
+    public record View(String id, String status, CreativeBrief brief, Revision revision, Integer confirmedRevision, long createdAt, long updatedAt, boolean archived) { }
     public record Revision(int number, Integer parent, String origin, String planner, StoryboardDraft draft, List<String> validationErrors, long createdAt) { }
     public record Summary(String id, String title, String status, int revision, long updatedAt) { }
+    public record LibraryItem(String id, String title, String status, int revision, long updatedAt, boolean archived) { }
+    public record Cursor(long updatedAt, String id) { }
+    public record Page(List<LibraryItem> items, Cursor nextCursor) { }
     public record PlanningAttempt(int number, StoryboardDraft draft, List<String> validationErrors) { }
     public record History(List<Revision> revisions, List<PlanningAttempt> attempts, List<StoryboardRepository.Confirmation> confirmations) { }
 }

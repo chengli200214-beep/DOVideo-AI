@@ -35,7 +35,7 @@ class SeedanceGenerationProviderTest {
     }
     GenerationTask task() {
         return new GenerationTask("trace-seedance", 1, "hash", "seedance", SeedanceGenerationProvider.MODEL, "{}",
-                GenerationTask.State.RUNNING, "cgt-original", null, null, null, null, null, 0, false, 0, null, 0, 0, 0);
+                GenerationTask.State.RUNNING, "cgt-original", null, null, null, null, null, 0, false, 0, null, 0, 0, 0, null, null);
     }
     static Response response(Request request, int status, String body) {
         return new Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(status).message("offline")

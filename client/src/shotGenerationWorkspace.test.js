@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { effectScope, nextTick, ref } from 'vue'
-import { initialShotIds, useShotGenerationWorkspace } from './shotGenerationWorkspace.js'
+import { canRegenerateShot, initialShotIds, initialShotsAvailable, useShotGenerationWorkspace } from './shotGenerationWorkspace.js'
 
 const flush = async () => { await nextTick(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve() }
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done }); return { promise, resolve } }
@@ -20,9 +20,17 @@ function setup(respond) {
 }
 function read(path) { return path.includes('generation-quote') ? { revision: 1, shots: [] } : overview() }
 
-test('initial generation excludes existing shots only within the current storyboard revision', () => {
+test('initial generation excludes stable shot history across revisions; changed shots regenerate explicitly', () => {
   assert.deepEqual(initialShotIds(view('one'), overview([version()])), ['b'])
-  assert.deepEqual(initialShotIds({ ...view('one'), revision: { ...view('one').revision, number: 2 } }, overview([version()])), ['a', 'b'])
+  assert.deepEqual(initialShotIds({ ...view('one'), revision: { ...view('one').revision, number: 2 } }, overview([version()])), ['b'])
+})
+test('remaining availability ignores completed shots and regeneration blocks uncertain history across revisions', () => {
+  assert.equal(initialShotsAvailable(['b'], { shots: [{ shotId: 'a', available: false }, { shotId: 'b', available: true }] }), true)
+  assert.equal(initialShotsAvailable(['a', 'b'], { shots: [{ shotId: 'b', available: true }] }), false)
+  const project = { ...view('one'), revision: { ...view('one').revision, number: 2 } }
+  assert.equal(canRegenerateShot(version(), project, [version()]), true)
+  assert.equal(canRegenerateShot(version(), project, [version(), { ...version('SUBMISSION_UNKNOWN'), id: 'unknown', revision: 2 }]), false)
+  assert.equal(canRegenerateShot(version(), project, [version(), { ...version(), id: 'new', revision: 2 }]), false)
 })
 test('a lost submit response reuses its key; a later deliberate regeneration gets a new key', async () => {
   let posts = 0
@@ -108,4 +116,31 @@ test('active states poll read-only; unknown states stop polling and dispose canc
   state = 'RUNNING'; await workspace.refresh(); assert.equal(workspace.timers.size, 1)
   workspace.close(); assert.equal(workspace.timers.size, 0)
   assert.equal(workspace.calls.some(item => item.options?.method === 'POST'), false)
+})
+test('shot status polling recovers from an outage without another generation submission', async () => {
+  let fail = false, state = 'RUNNING'
+  const workspace = setup(path => {
+    if (fail) { fail = false; throw new Error('offline') }
+    return path.includes('generation-quote') ? { shots: [] } : overview([version(state)])
+  })
+  try {
+    await flush(); await workspace.refresh(); fail = true; await workspace.refresh()
+    assert.equal(workspace.timers.size, 1); assert.match(workspace.error.value, /自动重试/)
+    state = 'SUCCEEDED'
+    const [id, next] = [...workspace.timers][0]; workspace.timers.delete(id); await next()
+    assert.equal(workspace.overview.value.versions[0].task.state, 'SUCCEEDED'); assert.equal(workspace.timers.size, 0)
+    assert.equal(workspace.calls.some(call => call.options), false)
+  } finally { workspace.close() }
+})
+test('archived projects remain readable but cannot configure, regenerate, recover, or reconcile', async () => {
+  const workspace = setup((path, options) => options ? {} : read(path))
+  try {
+    await flush(); await workspace.refresh(); workspace.project.value.archived = true
+    assert.equal(workspace.cleanConfirmed.value, false)
+    await workspace.configure({ maxVersions: 10, costLimit: 0 })
+    await workspace.submit({ mode: 'REGENERATE', shotIds: ['a'] })
+    await workspace.recover(version('FAILED').task); await workspace.reconcile(version('SUBMISSION_UNKNOWN').task, 'verified')
+    await workspace.refresh()
+    assert.equal(workspace.calls.some(call => call.options), false); assert.ok(workspace.overview.value)
+  } finally { workspace.close() }
 })

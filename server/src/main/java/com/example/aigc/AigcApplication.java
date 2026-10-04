@@ -21,6 +21,7 @@ import org.springframework.context.annotation.Import;
 @Import({AuthService.class,AuthInterceptor.class,WebConfig.class,UserController.class,ApiExceptionHandler.class,MinioConfig.class,MinioUtils.class,
     GenerationProperties.class,GenerationRepository.class,GenerationService.class,GenerationWorker.class,GenerationSchedulingConfig.class,GenerationAssetService.class,
     MockGenerationProvider.class,SiliconFlowGenerationProvider.class,SeedanceGenerationProvider.class,MinioGenerationArtifactStore.class,GenerationController.class,GenerationInputController.class,
+    GenerationAssetLifecycleService.class,GenerationAssetLibraryController.class,
     StoryboardRepository.class,StoryboardService.class,TemplateStoryboardPlanner.class,StoryboardController.class,ShotGenerationService.class,ShotGenerationController.class,
     StoryboardModelProperties.class,StoryboardModelRepository.class,StoryboardModelService.class,DeepSeekStoryboardPlanner.class,StoryboardModelWorker.class,StoryboardModelController.class,
     FilmService.class,CompositionRepository.class,CompositionWorker.class,FfmpegCompositionRenderer.class,FilmController.class,QualityEvaluationService.class,EvaluationController.class})

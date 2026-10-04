@@ -1,6 +1,7 @@
 param(
     [string]$JdkHome = $env:JAVA_HOME,
-    [string]$FfmpegDir = $env:FFMPEG_DIR
+    [string]$FfmpegDir = $env:FFMPEG_DIR,
+    [switch]$IntegrationOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -8,7 +9,9 @@ $taskRoot = Split-Path -Parent $PSScriptRoot
 $taskComposeFile = Join-Path $taskRoot 'docker-compose.generation-it.yml'
 $taskProject = 'dovideo-generation-it-' + [Guid]::NewGuid().ToString('N').Substring(0, 12)
 $taskNames = @('JAVA_HOME', 'GENERATION_IT_FFMPEG_DIR', 'GENERATION_IT_DB_PASSWORD', 'GENERATION_IT_REDIS_PASSWORD',
-    'GENERATION_IT_MINIO_PASSWORD', 'GENERATION_IT_DB_URL', 'GENERATION_IT_REDIS_PORT', 'GENERATION_IT_MINIO_URL')
+    'GENERATION_IT_MINIO_PASSWORD', 'GENERATION_IT_DB_URL', 'GENERATION_IT_REDIS_PORT', 'GENERATION_IT_MINIO_URL',
+    'GENERATION_PROVIDER', 'GENERATION_PAID_ENABLED', 'GENERATION_RECOVERY_ENABLED', 'SEEDANCE_RECOVERY_ENABLED',
+    'STORYBOARD_PAID_ENABLED', 'GENERATION_API_KEY', 'SEEDANCE_API_KEY', 'STORYBOARD_API_KEY', 'SILICONFLOW_API_KEY')
 $taskSavedEnvironment = @{}
 $taskComposeStarted = $false
 foreach ($taskName in $taskNames) {
@@ -38,7 +41,19 @@ try {
     }
     if (-not $FfmpegDir) { throw 'Pass -FfmpegDir containing ffmpeg and ffprobe for real composition acceptance.' }
     $FfmpegDir = (Resolve-Path -LiteralPath $FfmpegDir).Path
+    foreach ($taskTool in @('ffmpeg.exe', 'ffprobe.exe')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $FfmpegDir $taskTool))) { throw 'FfmpegDir must contain both ffmpeg.exe and ffprobe.exe.' }
+    }
     $env:GENERATION_IT_FFMPEG_DIR = $FfmpegDir
+    # Match the Linux harness: never inherit paid runtime settings or credentials into acceptance.
+    $env:GENERATION_PROVIDER = 'mock'
+    $env:GENERATION_PAID_ENABLED = 'false'
+    $env:GENERATION_RECOVERY_ENABLED = 'false'
+    $env:SEEDANCE_RECOVERY_ENABLED = 'false'
+    $env:STORYBOARD_PAID_ENABLED = 'false'
+    foreach ($taskCredential in @('GENERATION_API_KEY', 'SEEDANCE_API_KEY', 'STORYBOARD_API_KEY', 'SILICONFLOW_API_KEY')) {
+        [Environment]::SetEnvironmentVariable($taskCredential, $null, 'Process')
+    }
     & docker info --format '{{.ServerVersion}}'
     if ($LASTEXITCODE -ne 0) { throw 'Docker engine is unavailable. Start Docker Desktop and retry.' }
     # These values exist only in this process and the disposable containers.
@@ -65,7 +80,12 @@ try {
     if (-not $taskReady) { throw 'Acceptance MinIO did not become ready.' }
     Push-Location (Join-Path $taskRoot 'server')
     try {
-        & .\mvnw.cmd -B -Pgeneration-integration verify
+        if ($IntegrationOnly) {
+            # Refresh main/test classes and resources, then execute only the real infrastructure IT.
+            & .\mvnw.cmd -B -Pgeneration-integration '-Dit.test=GenerationInfrastructureIT' test-compile failsafe:integration-test failsafe:verify
+        } else {
+            & .\mvnw.cmd -B -Pgeneration-integration verify
+        }
         if ($LASTEXITCODE -ne 0) { throw 'Generation infrastructure acceptance failed; inspect server/target/failsafe-reports.' }
     } finally { Pop-Location }
 } finally {

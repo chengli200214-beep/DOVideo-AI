@@ -88,15 +88,17 @@ public class ShotGenerationService {
                     var shots = draft.shots().stream().filter(shot -> ids.contains(shot.id())).toList();
                     if (shots.size() != ids.size()) throw new NoSuchElementException("镜头不属于该分镜版本");
                     for (var shot : shots) {
-                        var previous = jdbc.queryForList("SELECT task_id FROM shot_generation_versions WHERE project_id=? AND revision=? AND shot_id=? ORDER BY version DESC LIMIT 1",
-                                projectId, input.revision(), shot.id());
+                        var previous = jdbc.queryForList("SELECT task_id FROM shot_generation_versions WHERE project_id=? AND shot_id=? ORDER BY revision DESC,version DESC LIMIT 1",
+                                projectId, shot.id());
                         if (input.mode().equals("INITIAL") && !previous.isEmpty()) throw conflict("该镜头已有生成版本，请使用局部重生成");
-                        if (input.mode().equals("REGENERATE")) {
-                            if (previous.isEmpty()) throw conflict("该镜头尚未生成，请先提交首次生成");
-                            var state = generation.get(user, (String) previous.getFirst().get("task_id")).state();
-                            if (state != GenerationTask.State.SUCCEEDED && state != GenerationTask.State.FAILED)
-                                throw conflict("该镜头仍在处理中或提交结果未知，请先查询或核对原任务");
-                        }
+                        if (input.mode().equals("REGENERATE") && previous.isEmpty())
+                            throw conflict("该镜头尚未生成，请先提交首次生成");
+                        // Editing the storyboard must not bypass an earlier in-flight or uncertain paid submission.
+                        if (!jdbc.queryForList("""
+                                SELECT v.id FROM shot_generation_versions v JOIN generation_tasks t ON t.id=v.task_id
+                                WHERE v.project_id=? AND v.shot_id=? AND t.state NOT IN ('SUCCEEDED','FAILED') LIMIT 1
+                                """, projectId, shot.id()).isEmpty())
+                            throw conflict("该镜头仍在处理中或提交结果未知，请先查询或核对原任务");
                     }
                     BigDecimal perTask = cost(), reserved = perTask.multiply(BigDecimal.valueOf(shots.size()));
                     int admitted = jdbc.update("""
@@ -130,6 +132,14 @@ public class ShotGenerationService {
         return new Overview(budget(projectId), known, unknown, versions);
     }
     private List<Version> versions(long user, String projectId, String operation) {
+        var project = owned(user, projectId);
+        Map<String, StoryboardDraft.Shot> currentShots = new HashMap<>();
+        try {
+            var draft = json.readValue(storyboards.revision(projectId, project.latestRevision()).json(), StoryboardDraft.class);
+            for (var shot : draft.shots()) currentShots.put(shot.id(), shot);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException corrupt) {
+            throw new IllegalStateException("保存的分镜无法读取", corrupt);
+        }
         return jdbc.query("SELECT * FROM shot_generation_versions WHERE project_id=?" + (operation == null ? "" : " AND operation_id=?") + " ORDER BY created_at,revision,shot_id,version",
                 (rs, index) -> {
                     var task = generation.get(user, rs.getString("task_id"));
@@ -139,8 +149,13 @@ public class ShotGenerationService {
                     return new Version(rs.getString("id"), rs.getInt("revision"), rs.getString("shot_id"), rs.getInt("version"),
                             rs.getString("operation_id"), rs.getString("shot_json"), rs.getBigDecimal("reserved_cost"),
                             free || (!submitted && task.state() == GenerationTask.State.FAILED) ? BigDecimal.ZERO : null,
-                            status, rs.getLong("created_at"), task);
+                            status, rs.getLong("created_at"), task,
+                            compatible(rs.getString("shot_json"), currentShots.get(rs.getString("shot_id"))));
                 }, operation == null ? new Object[]{projectId} : new Object[]{projectId, operation});
+    }
+    private boolean compatible(String saved, StoryboardDraft.Shot current) {
+        try { return ShotGenerationCompatibility.matches(json.readValue(saved, StoryboardDraft.Shot.class), current); }
+        catch (com.fasterxml.jackson.core.JsonProcessingException corrupt) { throw new IllegalStateException("保存的镜头无法读取", corrupt); }
     }
     private GenerationRequest request(StoryboardDraft.Shot shot) {
         var kind = shot.referenceAssetId() == null ? GenerationRequest.Kind.TEXT_TO_VIDEO : GenerationRequest.Kind.IMAGE_TO_VIDEO;
@@ -178,9 +193,12 @@ public class ShotGenerationService {
     private StoryboardRepository.Project lock(long user, String id) {
         if (jdbc.queryForList("SELECT id FROM creative_projects WHERE id=? AND user_id=? FOR UPDATE", id, user).isEmpty())
             throw new NoSuchElementException("创作项目不存在");
-        return owned(user, id);
+        var project = owned(user, id);
+        StoryboardRepository.requireActive(project);
+        return project;
     }
     private void requireConfirmed(StoryboardRepository.Project project, int revision) {
+        StoryboardRepository.requireActive(project);
         if (!"CONFIRMED".equals(project.status()) || project.latestRevision() != revision
                 || !Objects.equals(project.confirmedRevision(), revision)) throw conflict("仅可提交当前已确认的分镜版本");
     }
@@ -193,7 +211,8 @@ public class ShotGenerationService {
                            String model, String imageSize, boolean available, BigDecimal reservation) { }
     public record Quote(int revision, List<ShotPlan> shots, BigDecimal totalReservation, Budget budget) { }
     public record Version(String id, int revision, String shotId, int version, String operationId, String shotJson,
-                          BigDecimal reservation, BigDecimal actualCost, String costStatus, long createdAt, GenerationService.View task) { }
+                          BigDecimal reservation, BigDecimal actualCost, String costStatus, long createdAt, GenerationService.View task,
+                          boolean compatible) { }
     public record Submitted(String operationId, boolean reused, List<Version> versions, Budget budget) { }
     public record Overview(Budget budget, BigDecimal knownActualCost, long unknownCostTasks, List<Version> versions) { }
 }

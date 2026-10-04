@@ -1,0 +1,36 @@
+{
+  "verifiedAt": "2026-10-04T21:47:29+08:00",
+  "desktopVersion": "4.66.1",
+  "engineVersion": "29.3.1",
+  "windowsVersion": "10.0.26200",
+  "gracefulDesktopStop": "PASS exit 0",
+  "nativeDesktopRestart": "Reproduced dockerInference ERROR_CANT_ACCESS_FILE",
+  "failedDesktopStop": "Official docker desktop stop --force exited 0",
+  "safeColdStart": {
+    "State": "Ready",
+    "Ready": true,
+    "InitialState": "Stopped",
+    "StartedDesktop": true,
+    "ElapsedSeconds": 15.7
+  },
+  "repeatProjectStartup": {
+    "sameJavaProcess": true,
+    "sameDockerBackend": true,
+    "ignoredInvalidDockerContext": true,
+    "restoredCallerEnvironment": true,
+    "httpStatus": 200
+  },
+  "databaseSnapshotUnchanged": true,
+  "existingProjects": 5,
+  "referenceAssets": 1,
+  "completedFilms": 3,
+  "paidCalls": 0,
+  "readinessTests": 11,
+  "startupTests": 15,
+  "verifiedShells": [
+    "PowerShell 7",
+    "Windows PowerShell 5.1"
+  ],
+  "githubActions": "Windows matrix added; not executed remotely",
+  "scope": "Recovery is applied by the project launcher; Docker Desktop native startup is not patched"
+}

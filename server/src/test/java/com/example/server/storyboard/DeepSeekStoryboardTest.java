@@ -32,7 +32,7 @@ class DeepSeekStoryboardTest {
     CreativeBrief brief=new CreativeBrief("产品视频","展示核心卖点","水杯",List.of("便携","简洁"),"自然光",10,"9:16",null,2);
     @BeforeEach void setup() throws Exception {
         var data=new JdbcDataSource(); data.setURL("jdbc:h2:mem:"+UUID.randomUUID()+";MODE=MySQL;DB_CLOSE_DELAY=-1"); jdbc=new JdbcTemplate(data);
-        for (String migration:List.of("V6__creative_storyboards.sql","V9__deepseek_storyboard_planning.sql")) {
+        for (String migration:List.of("V4__create_generation_tasks.sql","V5__generation_inputs_and_trace.sql","V6__creative_storyboards.sql","V7__shot_generations.sql","V8__films_and_reviews.sql","V9__deepseek_storyboard_planning.sql","V10__generation_poll_deadlines.sql","V11__project_library_and_asset_cleanup.sql")) {
             String ddl=new String(new ClassPathResource("db/migration/"+migration).getInputStream().readAllBytes(),StandardCharsets.UTF_8).replace(" CHARACTER SET ascii COLLATE ascii_bin","");
             try (var connection=data.getConnection()) { ScriptUtils.executeSqlScript(connection,new org.springframework.core.io.ByteArrayResource(ddl.getBytes(StandardCharsets.UTF_8))); }
         }

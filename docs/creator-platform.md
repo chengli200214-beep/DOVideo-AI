@@ -1,6 +1,6 @@
 # AIGC 视频创作与任务编排平台
 
-> 最新验收（2026-10-02）：Seedance Mini 已完成 1 次真实文生、3 次真实图生、私有归档及 15.146 秒带字幕成片；117 项后端回归通过。当前实例运行真实生成模式，用户已授权不限次数与预算。真实结果见 [Seedance 接入与验收](seedance-video.md)、[成片](acceptance/seedance-film.mp4) 和 [脱敏验收记录](acceptance/seedance-real.json)。下文分阶段测试与旧运行配置保留为历史记录；项目按本次确认范围已完成。按用户要求，实际账单核对、正式人工评分及历史 SiliconFlow 三笔未知提交核实均移出验收范围，不再作为待办；费用未知、未评分和旧任务状态保留原记录。
+> 最新代码更新（2026-10-04）：已修复任务调度、超时恢复、跨修订镜头复用及草稿保护，并新增项目库与参考素材清理，详见 [修复与扩展记录](review-2026-10-04.md)。2026-10-02 的真实验收已完成 Seedance Mini 1 次文生、3 次图生、私有归档及 15.146 秒带字幕成片，证据见 [Seedance 接入与验收](seedance-video.md)、[成片](acceptance/seedance-film.mp4) 和 [脱敏验收记录](acceptance/seedance-real.json)。历史授权不随源码发布，普通启动仍关闭付费调用。按用户要求，实际账单核对、正式人工评分及历史 SiliconFlow 三笔未知提交核实均移出验收范围；费用未知、未评分和旧任务状态保留原记录。
 
 
 基于 DOVideo-AI 二次开发，面向产品介绍类短视频，工作方向为模型服务接入、文生／图生视频任务编排及后端工程。原开源视频理解能力保留；独立创作应用无需加载其 LLM / ASR / RocketMQ / Qdrant 服务。
@@ -9,14 +9,18 @@
 
 创作需求 → 本地模板或单独授权的 DeepSeek 脚本与分镜 → 编辑和人工确认 → 镜头生成与局部重生成 → 选择已归档镜头版本 → FFmpeg 合成 → 私有成片预览及下载 → 人工质量评分与成本报告。
 
-已提供 SiliconFlow／Seedance 异步视频适配器及 DeepSeek 分镜适配器、模式能力配置、私有参考图、幂等提交、租约恢复、未知提交核对、任务事件及产物校验。普通启动器默认使用 Mock 和本地模板并关闭付费调用；当前专用授权实例已开启 Seedance 真实生成。模板及本次文字分镜适配器不理解图片，配音与音乐服务未接入。详见 [DeepSeek 分镜与调用费用](deepseek-storyboards.md)。
+已提供 SiliconFlow／Seedance 异步视频适配器及 DeepSeek 分镜适配器、模式能力配置、私有参考图、幂等提交、租约恢复、未知提交核对、任务事件及产物校验。普通启动器默认使用 Mock 和本地模板并关闭付费调用。模板及本次文字分镜适配器不理解图片，配音与音乐服务未接入。详见 [DeepSeek 分镜与调用费用](deepseek-storyboards.md)。
+
+项目库支持搜索、游标分页、归档与恢复；素材库支持复用已上传的私有参考图，删除未引用图片并追踪对象清理状态。已有项目、历史分镜和任务引用的素材会保留。分镜草稿按账号和项目保存在当前浏览器；只改字幕、标题或口播时可以复用兼容的旧镜头视频，修改提示词等生成参数后只需重生成对应镜头。操作及 API 见 [项目库与素材库](project-library.md)，存储升级检查见 [MinIO 隐私说明](storage-privacy.md)。
 
 ## Windows 一键启动
 
-需要运行中的 Docker Desktop、JDK 21+ 和 Node.js 22+。本机源码路径为 `C:\Users\fishl\Desktop\sx\DOVideo-AI`。
+需要已安装的 Docker Desktop、JDK 21+ 和 Node.js 22+。启动脚本会检查本机 Docker；完全退出时先备份已知残留 socket 目录，再启动引擎。已运行时复用现有引擎。下例使用 `C:\Projects\DOVideo-AI`，请按实际克隆位置调整。
+
+若 Docker Desktop 已卡在 `dockerInference` 或 Secrets Engine `engine.sock` 错误窗口，先退出 Desktop，再运行项目启动脚本；脚本不会强行结束运行中的 Docker。完整行为见 [启动恢复说明](docker-recovery.md)。该恢复只备份指定临时目录，不重置项目数据库。
 
 ```powershell
-cd C:\Users\fishl\Desktop\sx\DOVideo-AI
+cd C:\Projects\DOVideo-AI
 # 首次没有 FFmpeg 时执行；从官方站点所列 Windows 分发方下载并校验 SHA-256。
 .\scripts\install-ffmpeg.ps1
 .\scripts\start-aigc.ps1 -JdkHome 'C:\Program Files\Eclipse Adoptium\jdk-25.0.0.36-hotspot'
@@ -47,7 +51,7 @@ cd C:\Users\fishl\Desktop\sx\DOVideo-AI
 1. 注册／登录，创建产品介绍需求，填写产品名称、卖点、风格、2–8 个镜头和期望总时长。
 2. 可上传私有 PNG / JPEG 参考图。检查脚本、字幕、提示词和镜头顺序，保存并确认稿。
 3. 配置项目版本额度，例如 12，Mock 预算上限为 0。提交镜头，等到状态为「已完成」；可查看归档视频，也可仅重生成某个已结束镜头。
-4. 在「成片与效果评测」中为每个镜头选择当前分镜的一项已归档生成版本，保存镜头选择；勾选字幕后提交合成。
+4. 在「成片与效果评测」中为每个镜头选择一项与当前分镜生成参数兼容的已归档版本，保存镜头选择；兼容版本可以来自历史修订。勾选字幕后提交合成，字幕使用当前确认稿。
 5. 完成后预览、下载 MP4，并查看镜头 SHA-256、生成版本和合成事件。合成输入不可变；合成失败只重试原合成任务。
 6. 人工对完成的镜头按内容符合度、动作稳定性、主体一致性各打 1–5 分，标记可用并记录依据。导出 JSON 或 CSV；没有评分时显示未评价，不自动打分。
 
@@ -60,7 +64,7 @@ Mock 成片只验证流程、媒体处理和权限，不是实际 AI 生成效�
 | 方法 | 路径 | 内容 |
 | --- | --- | --- |
 | GET | `/films` | 最近 50 个成片任务及最新镜头选择 |
-| POST | `/selections` | `{revision,expectedSelectionVersion,versionIds}`，每个镜头恰好一个当前分镜的已归档版本 |
+| POST | `/selections` | `{revision,expectedSelectionVersion,versionIds}`，每个镜头恰好一个与当前分镜兼容的已归档版本 |
 | POST | `/films` | `{selectionVersion,burnCaptions}` + Idempotency-Key，创建不可变合成任务 |
 | GET | `/films/{job}` | 合成参数快照及事件 |
 | POST | `/films/{job}/retry` | 仅恢复失败的原合成任务 |

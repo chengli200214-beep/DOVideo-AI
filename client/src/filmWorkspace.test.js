@@ -21,6 +21,15 @@ test('film selection must cover current completed shots and keeps storyboard ord
   assert.throws(() => completeFilmSelection(projectView('one'), clipVersions(), { a: 'a1', b: 'a1' }), /每个镜头/)
   assert.throws(() => completeFilmSelection(projectView('one'), [{ ...clipVersions()[0], revision: 2 }, clipVersions()[1]], { a: 'a1', b: 'b1' }), /每个镜头/)
 })
+test('unchanged historical clips are reusable while a changed prompt requires its new completed version', () => {
+  const project = projectView('one'); project.revision.number = 2; project.confirmedRevision = 2
+  const versions = clipVersions().map(v => ({ ...v, compatible: true }))
+  assert.deepEqual(completeFilmSelection(project, versions, { a: 'a1', b: 'b1' }), ['a1', 'b1'])
+  versions[0].compatible = false
+  assert.throws(() => completeFilmSelection(project, versions, { a: 'a1', b: 'b1' }), /每个镜头/)
+  versions.push({ id: 'a2', shotId: 'a', revision: 2, version: 1, compatible: true, task: { state: 'SUCCEEDED' } })
+  assert.deepEqual(completeFilmSelection(project, versions, { a: 'a2', b: 'b1' }), ['a2', 'b1'])
+})
 test('lost film response reuses the same key and never submits a video model task', async () => {
   let writes = 0
   const workspace = setup((path, options) => { if (!options) return read(path); if (++writes === 1) throw new Error('lost response'); return { reused: true } })
@@ -69,4 +78,28 @@ test('composition polling and task recovery are independent from generation and 
   assert.equal(workspace.calls.filter(c => c.options).length, 1)
   assert.equal(workspace.calls.find(c => c.options).path, '/generation/projects/one/films/job/retry')
   workspace.close(); assert.equal(workspace.timers.size, 0)
+})
+test('failed full film refresh retries runtime and report reads without resubmitting composition', async () => {
+  let fail = true
+  const workspace = setup(path => {
+    if (path.endsWith('/runtime') && fail) { fail = false; throw new Error('temporary failure') }
+    return read(path)
+  })
+  try {
+    await flush(); await flush()
+    assert.match(workspace.error.value, /自动重试/); assert.equal(workspace.timers.size, 1)
+    const [id, next] = [...workspace.timers][0]; workspace.timers.delete(id); await next()
+    assert.equal(workspace.runtime.value.available, true); assert.equal(workspace.error.value, '')
+    assert.equal(workspace.calls.some(call => call.options), false)
+  } finally { workspace.close() }
+})
+test('archived project composition and reviews are blocked without blocking report reads', async () => {
+  const workspace = setup(read)
+  try {
+    await flush(); await workspace.refresh(); workspace.project.value.archived = true
+    assert.equal(workspace.confirmed.value, false)
+    await workspace.saveSelection(); await workspace.compose(); await workspace.retry({ id: 'job' }); await workspace.review('a1', {})
+    await workspace.refresh()
+    assert.equal(workspace.calls.some(call => call.options), false); assert.ok(workspace.report.value)
+  } finally { workspace.close() }
 })

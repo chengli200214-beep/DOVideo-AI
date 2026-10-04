@@ -67,7 +67,8 @@
 <script setup>
 import { computed, onUnmounted, reactive, ref, watch } from 'vue'
 import { apiRequest, captureAuthSession } from './api'
-import { buildGenerationRequest, createSubmissionIntent, generationIsActive, generationStates } from './generationWorkspace'
+import { browserStorage, buildGenerationRequest, createSubmissionIntent, generationIsActive, generationStates } from './generationWorkspace'
+import { createReadPolling } from './readPolling'
 
 const props = defineProps({ user: Object })
 defineEmits(['login'])
@@ -82,27 +83,31 @@ const errorLabels = {
   SUBMISSION_UNKNOWN: '模型提交结果未知', MODEL_FAILED: '模型生成失败', POLL_TIMEOUT: '状态查询超时',
   ARTIFACT_SAVE_FAILED: '视频归档失败，可恢复查询和保存', STATUS_QUERY_FAILED: '模型状态查询失败'
 }
-let epoch = 0, selection = 0, timer = null, intent = null
+let epoch = 0, selection = 0, intent = null, retryLoad = false
+const polling = createReadPolling({ refresh: () => retryLoad || !task.value ? load() : refresh(), active: () => generationIsActive(task.value?.state), allowed: () => !!props.user, interval: 3000 })
 function currentGuard() {
   const version = epoch, auth = captureAuthSession()
   return () => version === epoch && auth()
 }
 async function request(path, options) {
   const response = await apiRequest(path, options)
-  if (!response.ok) throw new Error(await response.text() || '请求失败')
+    if (!response.ok) throw Object.assign(new Error(await response.text() || '请求失败'), { status: response.status })
   return response.json()
 }
 async function load() {
   if (!props.user) return
   const current = currentGuard()
+  polling.stop()
   error.value = ''
   try {
     const [caps, recent] = await Promise.all([request('/generation/capabilities'), request('/generation/tasks')])
     if (!current()) return
+    retryLoad = false
     capabilities.value = caps; tasks.value = recent
     if (!caps.find(item => item.kind === form.kind && item.enabled)) form.kind = caps.find(item => item.enabled)?.kind || ''
     if (!task.value && recent.length) await select(recent[0])
-  } catch (failure) { if (current()) error.value = failure.message }
+    else polling.succeeded()
+  } catch (failure) { if (current()) { retryLoad = true; error.value = `${failure.message}；${polling.failed(failure) ? '将自动重试查询' : '请手动刷新'}` } }
 }
 async function upload(event) {
   const file = event.target.files?.[0]
@@ -144,16 +149,19 @@ async function refresh() {
   const id = task.value.id, selected = selection, current = currentGuard()
   const valid = () => current() && selected === selection
   refreshing.value = true
+  polling.stop()
   try {
     const [updated, history] = await Promise.all([request(`/generation/tasks/${id}`), request(`/generation/tasks/${id}/trace`)])
     if (!valid()) return
     task.value = updated; trace.value = history
+    error.value = ''
     tasks.value = tasks.value.map(item => item.id === id ? updated : item)
     if (updated.state === 'SUCCEEDED') {
       const url = await request(`/generation/tasks/${id}/artifact`)
       if (valid()) videoUrl.value = url
     }
-  } catch (failure) { if (valid()) error.value = failure.message }
+    if (valid()) polling.succeeded()
+  } catch (failure) { if (valid()) error.value = `${failure.message}；${polling.failed(failure) ? '将自动重试查询' : '请手动刷新'}` }
   finally { if (valid()) refreshing.value = false }
 }
 async function recover(path, body = {}) {
@@ -168,20 +176,19 @@ async function recover(path, body = {}) {
 }
 function retry() { return recover(`/generation/tasks/${task.value.id}/retry`) }
 function reconcile() { return recover(`/generation/tasks/${task.value.id}/reconcile`, { requestId: remoteId.value }) }
-function newCreation() { intent?.reset(); selection += 1; task.value = null; videoUrl.value = ''; trace.value = null; error.value = '' }
+function newCreation() { polling.reset(); intent?.reset(); selection += 1; task.value = null; videoUrl.value = ''; trace.value = null; error.value = '' }
 watch(capability, value => { if (value && !value.sizes.includes(form.imageSize)) form.imageSize = value.sizes[0] || '' })
 watch(() => props.user?.id, () => {
-  epoch += 1; selection += 1; clearInterval(timer)
+  epoch += 1; selection += 1; retryLoad = false; polling.reset()
   capabilities.value = []; tasks.value = []; task.value = null; trace.value = null; asset.value = null
   preview.value = ''; videoUrl.value = ''; error.value = ''; busy.value = false; refreshing.value = false
   form.prompt = ''; form.negativePrompt = ''; form.seed = ''; remoteId.value = ''
-  intent = props.user ? createSubmissionIntent({ storage: sessionStorage, scope: props.user.id }) : null
+  intent = props.user ? createSubmissionIntent({ storage: browserStorage('sessionStorage'), scope: props.user.id }) : null
   if (props.user) {
     load()
-    timer = setInterval(() => { if (generationIsActive(task.value?.state)) refresh() }, 3000)
   }
 }, { immediate: true })
-onUnmounted(() => { epoch += 1; clearInterval(timer) })
+onUnmounted(() => { epoch += 1; polling.dispose() })
 </script>
 
 <style scoped>

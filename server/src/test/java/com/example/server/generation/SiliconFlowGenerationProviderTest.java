@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class SiliconFlowGenerationProviderTest {
     ObjectMapper json = new ObjectMapper();
     GenerationTask task = new GenerationTask("trace-1", 1, "hash", "siliconflow", "configured-model", "{}",
-            GenerationTask.State.RUNNING, "remote-1", null, null, null, null, null, 0, false, 0, null, 0, 0, 0);
+            GenerationTask.State.RUNNING, "remote-1", null, null, null, null, null, 0, false, 0, null, 0, 0, 0, null, null);
     GenerationProperties properties() {
         var config = new GenerationProperties();
         config.setPaidEnabled(true);

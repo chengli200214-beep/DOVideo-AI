@@ -75,3 +75,25 @@ test('reading a successful new revision keeps the parent draft unchanged until u
     assert.equal(workspace.calls.filter(call => call.options).length, 0)
   } finally { workspace.close() }
 })
+test('a failed status read retries and then observes completion without repeating a model POST', async () => {
+  let fail = false, status = 'SUBMITTING'
+  const workspace = setup(path => {
+    if (fail) { fail = false; throw new Error('temporary outage') }
+    return path.endsWith('/runtime') ? config : [{ id: 'task', status }]
+  })
+  try {
+    await flush(); fail = true; await workspace.scheduled.at(-1)(); await flush()
+    assert.match(workspace.error.value, /自动重试/)
+    status = 'SUCCEEDED'; await workspace.scheduled.at(-1)(); await flush()
+    assert.equal(workspace.tasks.value[0].status, 'SUCCEEDED'); assert.equal(workspace.error.value, '')
+    assert.equal(workspace.calls.some(call => call.options), false)
+  } finally { workspace.close() }
+})
+test('an archived project cannot launch a paid planning request even with an acknowledged budget', async () => {
+  const workspace = setup(path => path.endsWith('/runtime') ? config : [])
+  try {
+    await flush(); workspace.agreed.value = true; workspace.project.value.archived = true
+    assert.equal(workspace.ready.value, false); await workspace.generate(true); await workspace.refresh()
+    assert.equal(workspace.calls.some(call => call.options), false)
+  } finally { workspace.close() }
+})

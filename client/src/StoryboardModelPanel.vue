@@ -6,7 +6,7 @@
       <p>{{ runtime.model }} · {{ runtime.reason }}</p>
       <p v-if="runtime.ready">本次预留 {{ runtime.reservationPerCall }} {{ runtime.currency }}；已使用 {{ runtime.usedCalls }} / {{ runtime.maxCalls }} 次，已预留 {{ runtime.reservedCost }} / {{ runtime.budgetLimit }} {{ runtime.currency }}。预留金额与实际账单不同。</p>
       <p>根据已保存的原始文字需求生成新版本；参考图仅保留引用，不发送给文字模型。生成结果需人工检查并确认。</p>
-      <label v-if="runtime.ready"><input v-model="agreed" type="checkbox" :disabled="busy || hasActive">我确认本次请求可能产生模型费用，并使用页面所示调用额度</label>
+      <label v-if="runtime.ready"><input v-model="agreed" type="checkbox" :disabled="busy || hasActive || project.archived">我确认本次请求可能产生模型费用，并使用页面所示调用额度</label>
       <button :disabled="!ready" @click="generate()">DeepSeek 生成分镜</button>
       <button v-if="tasks.some(task => task.expectedRevision === project.revision.number && !['QUEUED','SUBMITTING'].includes(task.status))" :disabled="!ready" @click="generate(true)">再次生成（新调用，单独占用额度）</button>
     </template>
@@ -22,12 +22,13 @@
 <script setup>
 import { toRef } from 'vue'
 import { apiRequest, captureAuthSession } from './api'
+import { browserStorage } from './generationWorkspace'
 import { storyboardApi } from './storyboardWorkspace'
 import { planningStates, useStoryboardModelWorkspace } from './storyboardModelWorkspace'
 const props = defineProps({ user: Object, project: Object, dirty: Boolean })
 defineEmits(['load'])
 const { runtime, tasks, agreed, busy, loading, error, notice, ready, hasActive, refresh, generate } = useStoryboardModelWorkspace({
-  user: toRef(props, 'user'), project: toRef(props, 'project'), dirty: toRef(props, 'dirty'), request: storyboardApi(apiRequest), captureSession: captureAuthSession, storage: sessionStorage
+  user: toRef(props, 'user'), project: toRef(props, 'project'), dirty: toRef(props, 'dirty'), request: storyboardApi(apiRequest), captureSession: captureAuthSession, storage: browserStorage('sessionStorage')
 })
 </script>
 <style scoped>
