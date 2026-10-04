@@ -866,11 +866,11 @@ const handleUrlUpload = async () => {
     label: '正在解析视频链接',
     filename: parsedUrl.hostname,
     percent: null,
-    detail: '服务端正在拉取源视频，时长取决于源站速度',
+    detail: '正在提交链接任务',
     warning: ''
   }
   messageIsError.value = false
-  message.value = '正在解析链接并极速下载 (低码率模式)...'
+  message.value = '正在提交链接任务...'
 
   const formData = new FormData()
   formData.append('url', normalizedUrl)
@@ -882,22 +882,37 @@ const handleUrlUpload = async () => {
     })
     if (!res.ok) throw new Error(await res.text())
     const job = await res.json()
-    const uploadedMedia = await waitForUrlIngest(job.id, { request: apiRequest, isCurrent: isCurrentUpload })
-    if (!uploadedMedia || !isCurrentUpload()) return
-
-    showMsg('✅ 链接资源已入库')
-    videoUrl.value = ''
-    await fetchList({ notify: true })
+    if (!job?.id) throw new Error('服务端未返回任务编号')
     if (!isCurrentUpload()) return
-    openAgent(uploadedMedia)
+    videoUrl.value = ''
+    showMsg('⏳ 链接任务已提交，下载完成后会通知你')
+    trackUrlIngest(job.id)
   } catch (error) {
     console.error(error)
     if (!isCurrentUpload()) return
-    let errMsg = error.message
-    if (errMsg.includes("Unsupported URL")) errMsg = "不支持该平台链接"
-    showMsg('❌ 解析失败: ' + errMsg, true)
+    showMsg('❌ 提交失败: ' + urlIngestErrorText(error), true)
   } finally {
-    if (isCurrentUpload()) uploading.value = false
+    if (requestVersion === uploadRequestVersion) uploading.value = false
+  }
+}
+
+const urlIngestErrorText = error => {
+  const text = error?.message || String(error)
+  return text.includes('Unsupported URL') ? '不支持该平台链接' : text
+}
+
+// 链接下载在服务端后台执行：提交后不占用上传状态，完成或失败时再通知用户。
+async function trackUrlIngest(jobId) {
+  const isCurrentSession = captureAuthSession()
+  try {
+    const media = await waitForUrlIngest(jobId, { request: apiRequest, isCurrent: isCurrentSession })
+    if (!media || !isCurrentSession()) return
+    showMsg('✅ 链接资源已入库：' + media.filename)
+    await fetchList({ notify: true })
+  } catch (error) {
+    console.error(error)
+    if (!isCurrentSession()) return
+    showMsg('❌ 链接下载失败: ' + urlIngestErrorText(error), true)
   }
 }
 
