@@ -520,6 +520,7 @@ import {
 } from './chunkUpload'
 import { DEMO_ITEM } from './demoData'
 import { createTaskStreams } from './taskEvents'
+import { waitForUrlIngest } from './urlIngest'
 import { useAnalysisWorkspace } from './useAnalysisWorkspace'
 import GenerationWorkspace from './GenerationWorkspace.vue'
 import StoryboardWorkspace from './StoryboardWorkspace.vue'
@@ -880,8 +881,9 @@ const handleUrlUpload = async () => {
       body: formData
     })
     if (!res.ok) throw new Error(await res.text())
-    const uploadedMedia = await res.json()
-    if (!isCurrentUpload()) return
+    const job = await res.json()
+    const uploadedMedia = await waitForUrlIngest(job.id, { request: apiRequest, isCurrent: isCurrentUpload })
+    if (!uploadedMedia || !isCurrentUpload()) return
 
     showMsg('✅ 链接资源已入库')
     videoUrl.value = ''
