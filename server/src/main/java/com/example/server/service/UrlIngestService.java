@@ -43,8 +43,10 @@ public class UrlIngestService {
     static final int MAX_ACTIVE_PER_USER = 2;
     private static final String JOB_PREFIX = "media:url-ingest:";
     private static final Duration JOB_TTL = Duration.ofHours(24);
-    private static final Duration RUNNING_STALE_AFTER = Duration.ofMinutes(35);
-    private static final Duration QUEUED_STALE_AFTER = Duration.ofHours(2);
+    /** 单个任务：下载最长 30 分钟，外加 MD5 与最大 2GB 的 MinIO 上传余量。 */
+    private static final Duration RUNNING_STALE_AFTER = Duration.ofMinutes(60);
+    /** 最坏排队：队列 8 / 2 个工作线程 × 30 分钟 = 2 小时，再留 1 小时余量。 */
+    private static final Duration QUEUED_STALE_AFTER = Duration.ofHours(3);
     private static final String INTERRUPTED_MESSAGE = "任务因服务重启中断，请重新提交";
     private static final Pattern JOB_ID = Pattern.compile("[0-9a-fA-F-]{36}");
     private static final Logger log = LoggerFactory.getLogger(UrlIngestService.class);

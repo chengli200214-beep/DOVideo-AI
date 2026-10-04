@@ -166,7 +166,7 @@ class UrlIngestServiceTest {
         // simulate a worker that died after marking RUNNING
         var job = store.get(store.keySet().iterator().next());
         store.put(store.keySet().iterator().next(), job.replace("\"QUEUED\"", "\"RUNNING\""));
-        now.addAndGet(Duration.ofMinutes(30).toMillis());
+        now.addAndGet(Duration.ofMinutes(55).toMillis());
         assertEquals(RUNNING, service.status(queued.id(), 1L).status());
         now.addAndGet(Duration.ofMinutes(6).toMillis());
         var stale = service.status(queued.id(), 1L);
@@ -178,7 +178,7 @@ class UrlIngestServiceTest {
     void staleQueuedJobIsReportedFailed() {
         var service = service(pending::add);
         var queued = service.submit(URL, 1L);
-        now.addAndGet(Duration.ofMinutes(119).toMillis());
+        now.addAndGet(Duration.ofMinutes(179).toMillis());
         assertEquals(QUEUED, service.status(queued.id(), 1L).status());
         now.addAndGet(Duration.ofMinutes(2).toMillis());
         assertEquals(FAILED, service.status(queued.id(), 1L).status());
