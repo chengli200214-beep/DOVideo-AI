@@ -7,6 +7,7 @@ import com.example.server.dto.AuthRequest;
 import com.example.server.dto.AuthResponse;
 import com.example.server.exception.BusinessException;
 import com.example.server.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -34,8 +35,9 @@ public class UserController {
 
     @PostMapping("/login")
     public Result<AuthData> login(
-            @Validated(AuthRequest.Login.class) @RequestBody AuthRequest request) {
-        return toResult(authService.login(request));
+            @Validated(AuthRequest.Login.class) @RequestBody AuthRequest request,
+            HttpServletRequest httpRequest) {
+        return toResult(authService.login(request, httpRequest.getRemoteAddr()));
     }
 
     @PostMapping("/logout")

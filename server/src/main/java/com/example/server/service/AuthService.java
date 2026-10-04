@@ -7,6 +7,8 @@ import com.example.server.entity.User;
 import com.example.server.mapper.UserMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -37,6 +39,7 @@ public class AuthService {
     private static final String SESSION_PREFIX = "auth:session:";
     private static final String LOGIN_FAILURE_PREFIX = "auth:login-failures:";
     private static final int MAX_LOGIN_FAILURES = 8;
+    private static final String LOGIN_IP_FAILURE_PREFIX = "auth:login-failures:ip:";
     private static final long LOGIN_FAILURE_WINDOW_MINUTES = 10;
     private static final DefaultRedisScript<Long> RECORD_FAILURE = new DefaultRedisScript<>("""
             local count = redis.call('INCR', KEYS[1])
@@ -51,10 +54,22 @@ public class AuthService {
     private final StringRedisTemplate redisTemplate;
     private final UserMapper userMapper;
     private final SecureRandom secureRandom = new SecureRandom();
+    private final int maxLoginFailuresPerIp;
+    /** 账号不存在时用它跑一次 PBKDF2，使响应时间与真实校验一致，无法据此判断账号是否注册。 */
+    private final String timingDummyHash;
 
     public AuthService(StringRedisTemplate redisTemplate, UserMapper userMapper) {
+        this(redisTemplate, userMapper, 30);
+    }
+
+    @Autowired
+    public AuthService(StringRedisTemplate redisTemplate,
+                       UserMapper userMapper,
+                       @Value("${auth.login.max-failures-per-ip:30}") int maxLoginFailuresPerIp) {
         this.redisTemplate = redisTemplate;
         this.userMapper = userMapper;
+        this.maxLoginFailuresPerIp = maxLoginFailuresPerIp;
+        this.timingDummyHash = hashPassword("timing-equalizer-password");
     }
 
     public AuthResponse register(AuthRequest request) {
@@ -91,19 +106,30 @@ public class AuthService {
     }
 
     public AuthResponse login(AuthRequest request) {
+        return login(request, null);
+    }
+
+    public AuthResponse login(AuthRequest request, String clientIp) {
         String username = normalizeUsername(request.username());
         if (username == null || request.password() == null || request.password().isBlank()) {
             return response(400, "请输入账号和密码", null, null);
         }
-        if (!loginAttemptAllowed(username)) {
+        String ipKey = loginIpFailureKey(clientIp);
+        if (!loginAttemptAllowed(username)
+                || (ipKey != null && !attemptAllowed(ipKey, maxLoginFailuresPerIp))) {
             return response(429, "登录尝试过于频繁，请稍后再试", null, null);
         }
 
         QueryWrapper<User> query = new QueryWrapper<>();
         query.eq("username", username);
         User user = userMapper.selectOne(query);
+        if (user == null) {
+            passwordMatches(request.password(), timingDummyHash);
+        }
         if (user == null || !passwordMatches(request.password(), user.getPassword())) {
             recordLoginFailure(username);
+            // 成功登录不清 IP 计数：否则登录一次自己的账号就能把喷洒攻击的计数清零。
+            if (ipKey != null) recordFailure(ipKey);
             return response(401, "账号或密码错误", null, null);
         }
 
@@ -179,19 +205,31 @@ public class AuthService {
     }
 
     public boolean loginAttemptAllowed(String username) {
-        String value = redisTemplate.opsForValue().get(loginFailureKey(username));
+        return attemptAllowed(loginFailureKey(username), MAX_LOGIN_FAILURES);
+    }
+
+    public void recordLoginFailure(String username) {
+        recordFailure(loginFailureKey(username));
+    }
+
+    private boolean attemptAllowed(String key, int maxFailures) {
+        String value = redisTemplate.opsForValue().get(key);
         if (value == null) return true;
         try {
-            return Long.parseLong(value) < MAX_LOGIN_FAILURES;
+            return Long.parseLong(value) < maxFailures;
         } catch (NumberFormatException e) {
-            redisTemplate.delete(loginFailureKey(username));
+            redisTemplate.delete(key);
             return true;
         }
     }
 
-    public void recordLoginFailure(String username) {
-        redisTemplate.execute(RECORD_FAILURE, List.of(loginFailureKey(username)),
+    private void recordFailure(String key) {
+        redisTemplate.execute(RECORD_FAILURE, List.of(key),
                 String.valueOf(TimeUnit.MINUTES.toMillis(LOGIN_FAILURE_WINDOW_MINUTES)));
+    }
+
+    private String loginIpFailureKey(String clientIp) {
+        return clientIp == null || clientIp.isBlank() ? null : LOGIN_IP_FAILURE_PREFIX + clientIp.trim();
     }
 
     public void clearLoginFailures(String username) {
