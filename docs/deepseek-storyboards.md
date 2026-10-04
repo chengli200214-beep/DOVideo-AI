@@ -30,9 +30,9 @@
 
 ## 配置与启动
 
-默认不启用；独立配置前缀为 `storyboard.model`，环境变量为 `.env.example` 的 `STORYBOARD_*`。不继承原视频理解模块的 `SILICONFLOW_API_KEY`，也不继承视频任务的 `GENERATION_API_KEY`。
+默认不启用；独立配置前缀为 `storyboard.model`，环境变量为 `.env.example` 的 `STORYBOARD_*`。不继承原视频理解模块的 `DEEPSEEK_API_KEY`，也不继承视频任务的 `SEEDANCE_API_KEY`。
 
-支持 `https://api.deepseek.com`（也接受 `/v1`）及 `https://api.siliconflow.cn/v1`。前者使用 DeepSeek 官方模型 ID 与官方密钥；后者使用该平台实际开放的 DeepSeek 模型 ID 与该平台密钥，二者不能混用。当前官方默认模型名 `deepseek-flash`，上线前应再次核对账户可用模型。
+仅支持 DeepSeek 官方 `https://api.deepseek.com`（也接受 `/v1`），使用对应官方密钥和模型 ID。当前项目配置模型为 `deepseek-flash`；供应商兼容网关不再接入。模型精简及历史任务处理见 [模型配置](model-providers.md)。
 
 启用真实请求需同时配置：`STORYBOARD_PAID_ENABLED=true`、API 密钥、准确的模型及完全相同的 `STORYBOARD_APPROVED_MODEL`、人工许可对应的授权 ID、币种、最大调用数、总预算、单次预留、已核实的输入／输出价格（每百万 token）。价格和额度为 0 或配置不完整时不能提交。输入 UTF-8 字节数与最大输出 token 用于保守估算；预留不足也拒绝提交。
 
@@ -53,9 +53,9 @@
 
 ## 官方依据与验收范围
 
-请求使用 Chat Completions、JSON Output、非流式输出和有界 `max_tokens`。提示词明确包含 json 和示例；空内容、截断、重复 JSON 字段、额外素材字段等均拒绝。DeepSeek 官方使用 `thinking.type=disabled`，SiliconFlow 使用 `enable_thinking=false`。
+请求使用 Chat Completions、JSON Output、非流式输出和有界 `max_tokens`。提示词明确包含 json 和示例；空内容、截断、重复 JSON 字段、额外素材字段等均拒绝。使用 DeepSeek 官方 `thinking.type=disabled`。
 
-依据：[DeepSeek JSON Output](https://api-docs.deepseek.com/guides/json_mode/)、[DeepSeek Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)、[DeepSeek 模型与计费](https://api-docs.deepseek.com/quick_start/pricing/)、[SiliconFlow Chat Completions](https://docs.siliconflow.cn/docs/api/chat-completions-post)。
+依据：[DeepSeek JSON Output](https://api-docs.deepseek.com/guides/json_mode/)、[DeepSeek Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)、[DeepSeek 模型与计费](https://api-docs.deepseek.com/quick_start/pricing/)。
 
 自动测试的模型 HTTP 请求全部由测试专用拦截器送到回环地址的 MockWebServer，不会送往真实供应商。覆盖成功保存、权限、默认关闭、并发幂等、跨项目额度竞争、配置变更、无效 JSON、空输出、截断、非法字段、HTTP 错误、断连、超时、版本冲突、过期租约、存储失败及不重复调用。单例真实联调与自动测试分开记录，不把一次生成视作全面质量评测。
 

@@ -4,9 +4,11 @@
 
 项目按用户确认的本次范围已完成。用户明确取消供应商实际账单核对、正式人工评分、历史 SiliconFlow 三笔未知提交核实，三项均移出验收范围，不再作为完成条件。费用未知、未评分和历史未知提交记录保留原状态。
 
-## 当前运行状态
+## 真实验收记录（2026-10-02）
 
-用户已明确授权 Seedance 不限制调用次数和预算。本地应用现运行 `doubao-seedance-2-0-mini-260615` 真实生成模式，两个能力接口 `available=true`；此次实际调用 4 次，其中 1 次文生、3 次图生，全部完成。调用计数和费用预留仍持久化保存，未知提交仍不重投。
+当前普通启动保持 Mock、付费关闭；当前配置见 [模型配置](model-providers.md)。下文描述既有真实验收，不代表自动开启新调用。
+
+用户已明确授权 Seedance 不限制调用次数和预算。验收当时使用 `doubao-seedance-2-0-mini-260615` 真实生成模式，两个能力接口 `available=true`；此次实际调用 4 次，其中 1 次文生、3 次图生，全部完成。调用计数和费用预留仍持久化保存，未知提交仍不重投。
 
 117 项后端回归及独立应用打包通过；54 项前端测试和生产构建为接入时通过的检查，本轮未改前端代码。实际付费启动预检发现独立入口漏注册 provider，已补入 `AigcApplication` 并新增实际 Spring 应用上下文测试；该测试覆盖三个 provider 的注入及付费门禁。此前 12 项协议／流程测试访问本地 HTTP 拦截器与 H2，真实生成另行记录。
 
@@ -26,10 +28,10 @@ SEEDANCE_RECOVERY_ENABLED=false
 ```
 
 ```powershell
-./scripts/start-aigc.ps1 -JdkHome '<JDK21+安装目录>' -Seedance -RecoverVideoTasks
+./scripts/start-aigc.ps1 -JdkHome '<JDK21+安装目录>' -Seedance
 ```
 
-启动器只导入凭据和下载配置，固定关闭新视频和分镜付费调用。`-RecoverVideoTasks` 开放 SiliconFlow 旧任务恢复。方舟与 SiliconFlow 的凭据、地址和下载白名单独立，切换不会把旧任务改为新供应商。`SEEDANCE_RECOVERY_ENABLED=true` 可独立开放已有方舟任务的查询与保存，不允许新提交。
+启动器只导入方舟凭据和下载配置，固定关闭视频、分镜付费调用及任务恢复。独立授权运行环境中的 `SEEDANCE_RECOVERY_ENABLED=true` 可开放已有方舟任务查询与保存，不允许新提交。SiliconFlow 与旧恢复参数已移除，历史任务保留，不能转换为 Seedance 任务。
 
 本轮专用启动脚本为 Git 忽略的 `.local/start-seedance-authorized.ps1`，读取 `.local/seedance-video-authorization.json` 中已有 Seedance 授权 ID；重启复用 ID，不重置计数。不限预算的授权仍受 INT／DECIMAL 存储上限与每项目版本额度等技术边界约束。普通启动器保持默认不付费，发现已有付费运行实例会提示先停止。Seedance 授权不扩大 SiliconFlow 的历史额度。
 

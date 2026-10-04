@@ -225,12 +225,12 @@ class GenerationFlowTest {
 
     @Test
     void realProviderIsBlockedByDefaultAndGuardAlsoAppliesToPersistedTasks() throws Exception {
-        properties.setProvider("siliconflow");
-        var real = new SiliconFlowGenerationProvider(properties, json);
+        properties.setProvider("seedance");
+        var real = new SeedanceGenerationProvider(properties, json);
         service = new GenerationService(repository, properties, List.of(real), json, artifacts, assets);
         assertThrows(BusinessException.class, () -> service.submit(1, "paid", text));
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM generation_tasks", Integer.class));
-        repository.insert("persisted", 1, "persisted", "hash", "siliconflow", "model", json.writeValueAsString(text), 0);
+        repository.insert("persisted", 1, "persisted", "hash", "seedance", SeedanceGenerationProvider.MODEL, json.writeValueAsString(text), 0);
         worker = new GenerationWorker(repository, service, json, artifacts);
         assertThrows(BusinessException.class, () -> worker.process("persisted"));
         assertEquals(QUEUED, repository.byId("persisted").state());
@@ -239,44 +239,46 @@ class GenerationFlowTest {
 
     @Test
     void recoveryOnlyModeReconcilesAndArchivesWithoutNewSubmissionOrReservation() throws Exception {
-        properties.setProvider("siliconflow");
+        properties.setProvider("seedance");
         properties.setPaidEnabled(false);
-        properties.setRecoveryEnabled(true);
-        properties.setApiKey("offline-recovery-key");
-        properties.setArtifactHosts("artifacts.example.com");
+        properties.getSeedance().setRecoveryEnabled(true);
+        properties.getSeedance().setApiKey("offline-recovery-key");
+        properties.getSeedance().setArtifactHosts("artifacts.example.com");
         var calls = new ArrayList<okhttp3.Request>();
-        provider = new SiliconFlowGenerationProvider(properties, json, new okhttp3.OkHttpClient.Builder()
+        provider = new SeedanceGenerationProvider(properties, json, new okhttp3.OkHttpClient.Builder()
                 .addInterceptor(chain -> {
                     calls.add(chain.request());
                     return new okhttp3.Response.Builder().request(chain.request()).protocol(okhttp3.Protocol.HTTP_1_1)
                             .code(200).message("OK").body(okhttp3.ResponseBody.create(
-                                    "{\"status\":\"Succeed\",\"results\":{\"videos\":[{\"url\":\"https://artifacts.example.com/original.mp4\"}]}}",
+                                    "{\"id\":\"verified-original-id\",\"model\":\"" + SeedanceGenerationProvider.MODEL
+                                            + "\",\"status\":\"succeeded\",\"content\":{\"video_url\":\"https://artifacts.example.com/original.mp4\"}}",
                                     okhttp3.MediaType.get("application/json"))).build();
                 }));
         service = new GenerationService(repository, properties, List.of(provider), json, artifacts, assets);
         worker = new GenerationWorker(repository, service, json, artifacts);
-        repository.insert("original", 1, "original-intent", "hash", "siliconflow", "original-model", json.writeValueAsString(text), 0);
+        repository.insert("original", 1, "original-intent", "hash", "seedance", SeedanceGenerationProvider.MODEL, json.writeValueAsString(text), 0);
         var claim = repository.claim("original", System.currentTimeMillis());
         repository.finish(claim, SUBMISSION_UNKNOWN, null, null, null, "SUBMISSION_UNKNOWN", 0, false, 0, System.currentTimeMillis());
         jdbc.update("INSERT INTO generation_authorizations(id,policy_hash,used_tasks,reserved_cost) VALUES ('original-authorization','hash',1,2.5)");
         jdbc.update("INSERT INTO generation_reservations VALUES ('original','original-authorization',2.5,0)");
         assertTrue(service.get(1, "original").recoveryAvailable());
         assertThrows(BusinessException.class, () -> service.submit(1, "new-generation", text));
-        properties.setRecoveryEnabled(false);
+        properties.getSeedance().setRecoveryEnabled(false);
         assertFalse(service.get(1, "original").recoveryAvailable());
         assertThrows(BusinessException.class, () -> service.reconcile(1, "original", "verified-original-id"));
         assertEquals(SUBMISSION_UNKNOWN, service.get(1, "original").state());
-        properties.setRecoveryEnabled(true);
+        properties.getSeedance().setRecoveryEnabled(true);
         service.reconcile(1, "original", "verified-original-id");
         worker = new GenerationWorker(new GenerationRepository(jdbc), service, json, artifacts);
         step("original"); step("original");
         assertEquals(SUCCEEDED, service.get(1, "original").state());
         assertEquals("verified-original-id", service.get(1, "original").remoteId());
         assertEquals(1, calls.size());
-        assertEquals("/v1/video/status", calls.getFirst().url().encodedPath());
+        assertEquals("GET", calls.getFirst().method());
+        assertEquals("/api/v3/contents/generations/tasks/verified-original-id", calls.getFirst().url().encodedPath());
         assertEquals(1, jdbc.queryForObject("SELECT used_tasks FROM generation_authorizations WHERE id='original-authorization'", Integer.class));
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM generation_reservations", Integer.class));
-        repository.insert("queued-paid", 1, "queued-paid", "hash", "siliconflow", "model", json.writeValueAsString(text), 0);
+        repository.insert("queued-paid", 1, "queued-paid", "hash", "seedance", SeedanceGenerationProvider.MODEL, json.writeValueAsString(text), 0);
         assertThrows(BusinessException.class, () -> worker.process("queued-paid"));
         assertEquals(QUEUED, service.get(1, "queued-paid").state());
         assertEquals(1, calls.size());
@@ -296,27 +298,27 @@ class GenerationFlowTest {
     }
 
     @Test
-    void privateReferenceIsLoadedIntoSiliconFlowWirePayloadBeforeSubmission() throws Exception {
+    void privateReferenceIsLoadedIntoSeedanceWirePayloadBeforeSubmission() throws Exception {
         var image = new java.awt.image.BufferedImage(720, 1280, java.awt.image.BufferedImage.TYPE_INT_RGB);
         var png = new java.io.ByteArrayOutputStream();
         assertTrue(javax.imageio.ImageIO.write(image, "png", png));
         byte[] bytes = png.toByteArray();
         var asset = assets.upload(1, "image/png", bytes);
-        properties.setProvider("siliconflow");
+        properties.setProvider("seedance");
         properties.setPaidEnabled(true);
-        properties.setApiKey("offline-contract-key");
-        properties.setArtifactHosts("artifacts.example.com");
+        properties.getSeedance().setApiKey("offline-contract-key");
+        properties.getSeedance().setArtifactHosts("artifacts.example.com");
         properties.setAuthorizationId("offline-i2v-contract");
         properties.setApprovedModels(List.of(properties.getImageModel()));
         properties.setMaxPaidTasks(1);
         properties.setBudgetLimit(new java.math.BigDecimal("2.5"));
         properties.setReservationPerTask(new java.math.BigDecimal("2.5"));
         var calls = new ArrayList<okhttp3.Request>();
-        provider = new SiliconFlowGenerationProvider(properties, json, new okhttp3.OkHttpClient.Builder()
+        provider = new SeedanceGenerationProvider(properties, json, new okhttp3.OkHttpClient.Builder()
                 .addInterceptor(chain -> {
                     calls.add(chain.request());
                     return new okhttp3.Response.Builder().request(chain.request()).protocol(okhttp3.Protocol.HTTP_1_1)
-                            .code(200).message("OK").body(okhttp3.ResponseBody.create("{\"requestId\":\"offline-remote\"}",
+                            .code(200).message("OK").body(okhttp3.ResponseBody.create("{\"id\":\"offline-remote\"}",
                                     okhttp3.MediaType.get("application/json"))).build();
                 }));
         service = new GenerationService(repository, properties, List.of(provider), json, artifacts, assets);
@@ -332,14 +334,17 @@ class GenerationFlowTest {
         calls.getFirst().body().writeTo(buffer);
         var payload = json.readTree(buffer.readUtf8());
         assertEquals(properties.getImageModel(), payload.path("model").asText());
-        assertEquals("720x1280", payload.path("image_size").asText());
-        String wireImage = payload.path("image").asText();
+        assertEquals("9:16", payload.path("ratio").asText());
+        assertEquals("720p", payload.path("resolution").asText());
+        String wireImage = payload.path("content").get(1).path("image_url").path("url").asText();
         assertTrue(wireImage.startsWith("data:image/png;base64,"));
         assertArrayEquals(bytes, java.util.Base64.getDecoder().decode(wireImage.substring(wireImage.indexOf(',') + 1)));
         assertFalse(payload.has("referenceImageId"));
-        assertEquals(id, calls.getFirst().header("X-Trace-Id"));
+        assertEquals(id, calls.getFirst().header("X-Client-Request-Id"));
         assertEquals(asset.sha256(), service.trace(1, id).effectiveSubmission().path("imageReference").path("sha256").asText());
-        assertFalse(service.trace(1, id).effectiveSubmission().path("parameters").has("image"));
+        assertEquals("[private-reference]", service.trace(1, id).effectiveSubmission().path("parameters")
+                .path("content").get(1).path("image_url").path("url").asText());
+        assertFalse(json.writeValueAsString(service.trace(1, id)).contains("data:image"));
     }
 
     @Test

@@ -33,9 +33,9 @@
 
 ## AIGC 创作平台与真实验收
 
-新增链路：创作需求 → 脚本与分镜确认 → 异步视频生成 → 私有产物归档 → 镜头版本选择 → 带字幕成片。支持 Mock、SiliconFlow 和 Seedance 视频适配器，默认启动关闭付费调用；密钥和本地数据库不随仓库发布。
+新增链路：创作需求 → DeepSeek 官方脚本与分镜 → 人工确认 → Seedance 文生／图生视频 → 私有产物归档 → 镜头版本选择 → 带字幕成片。付费模型仅保留 DeepSeek 与 Seedance，免费 Mock 用于演示和测试；默认启动关闭付费调用，密钥和本地数据库不随仓库发布。
 
-Seedance Mini 已验证 1 次真实文生视频、3 次真实图生视频，以及 15.146 秒带字幕成片。后续代码审查补齐任务调度、超时恢复、跨分镜版本复用、本地草稿保护、项目搜索与归档、参考素材清理。最新验证见 [修复与扩展记录](docs/review-2026-10-04.md)；账单核对、正式人工评分和历史 SiliconFlow 未知提交核实按用户要求移出本次验收范围，原始状态保留。
+Seedance Mini 已验证 1 次真实文生视频、3 次真实图生视频，以及 15.146 秒带字幕成片。后续代码审查补齐任务调度、超时恢复、跨分镜版本复用、本地草稿保护、项目搜索与归档、参考素材清理。模型精简与历史兼容见 [DeepSeek 与 Seedance 配置](docs/model-providers.md)，修复验收见 [修复与扩展记录](docs/review-2026-10-04.md)。历史任务与验收记录保留，已停用的服务不再提交或恢复。
 
 ![AIGC 视频创作工作台](docs/acceptance/seedance-real-workbench.jpg)
 
@@ -163,7 +163,7 @@ sequenceDiagram
 | API | Java 21、Spring Boot 3.5.9、Undertow、MyBatis-Plus | 鉴权、媒体管理、任务编排与 REST API |
 | 异步与缓存 | RocketMQ 5.3.4、Redis 7.4、Redisson | 异步削峰、状态缓存、限流、锁与消费幂等 |
 | 数据与存储 | MySQL 8、MinIO、Qdrant | 业务数据、视频对象、Checkpoint 与向量检索 |
-| 视频与 AI | FFmpeg、Tesseract、LangChain4j、DeepSeek、TeleSpeechASR、BGE-M3 | 音视频处理、多模态解析、Agent 推理与 Embedding |
+| 视频与 AI | FFmpeg、Tesseract、LangChain4j、DeepSeek、Seedance | 分镜、视频生成、媒体处理；原分析模块 ASR / Embedding 需单独配置，默认关闭 |
 | 部署 | Docker Compose | 本地中间件编排 |
 
 ## 本地运行
@@ -171,6 +171,8 @@ sequenceDiagram
 新增文生视频／图生视频任务接口与 Vue 生成入口，普通启动器默认使用本地 mock。已支持模型能力配置、私有参考图片、任务追溯、幂等恢复和 MinIO 归档；接口见 [视频生成接入说明](docs/video-generation.md)，分镜、镜头版本与成片功能见 [创作平台说明](docs/creator-platform.md)。[Seedance Mini](docs/seedance-video.md) 已完成 1 次真实文生、3 次真实图生及带字幕多镜头成片验收；117 项后端回归通过。实际费用与人工评分保留待核对状态。
 
 已新增「脚本与分镜」入口（`/?storyboard`）：产品需求创建本地模板草稿，支持镜头编辑、历史修订和人工确认，确认不会启动视频生成。接口、限制和验收见 [脚本与分镜说明](docs/storyboards.md)。
+
+当前付费模型只保留 DeepSeek 官方与 Seedance；精简后 153 项后端、77 项前端、真实中间件 21 个检查和 Windows 启动测试通过，历史视频及台账保留。配置与范围见 [模型配置](docs/model-providers.md)，本轮 [脱敏验收记录](docs/acceptance/model-provider-simplification.json) 不包含新增付费调用。
 
 确认分镜后可在「镜头生成」区域配置项目额度、批量提交、查看归档视频或局部重生成；生成版本绑定不可变分镜，查询与保存恢复沿用原模型任务。默认 Mock、零付费调用，详见 [镜头生成与预算台账](docs/shot-generation.md)。
 
@@ -205,9 +207,9 @@ tesseract --version
 cp .env.example .env
 ```
 
-编辑 `.env`，至少替换数据库、Redis、MinIO、Qdrant 的示例密码并设置 `SILICONFLOW_API_KEY`。全新数据库中 `DB_USERNAME` 与 `MYSQL_APP_USER` 应保持一致；`MYSQL_ROOT_PASSWORD` 仅供数据库初始化使用。密钥只保存在本地 `.env`，不要提交到仓库。
+编辑 `.env`，至少替换数据库、Redis、MinIO、Qdrant 的示例密码；运行原视频理解应用时设置 `DEEPSEEK_API_KEY`。全新数据库中 `DB_USERNAME` 与 `MYSQL_APP_USER` 应保持一致；`MYSQL_ROOT_PASSWORD` 仅供数据库初始化使用。密钥只保存在本地 `.env`，不要提交到仓库。
 
-默认 LLM 为 `deepseek-ai/DeepSeek-V3.2`。历史示例模型 `deepseek-ai/DeepSeek-R1-Distill-Qwen-32B` 已被硅基流动禁用，会返回 `Model disabled`。`LLM_TIMEOUT_SECONDS` 默认是 `300`，用于避免长视频证据分析在模型响应尚未返回时过早超时；模型或超时配置变更后需要重启后端。
+原分析 LLM 改用 DeepSeek 官方地址和配置模型 `deepseek-flash`。ASR 与 Embedding 默认关闭，各自使用独立服务地址和密钥，不继承 DeepSeek 凭据；不配置 Embedding 时保留关键词检索降级，未配置 ASR 时不能提供语音转写。独立创作平台不加载这些分析服务。`LLM_TIMEOUT_SECONDS` 默认是 `300`；模型或超时配置变更后需要重启后端。
 
 ### 2. 启动中间件
 
@@ -259,7 +261,7 @@ npm run dev
 | 后端无法连接 MySQL 或 Redis | 运行 `docker compose --env-file .env ps`，确认服务健康且 `.env` 密码一致 |
 | 页面提示无法连接后端 | 先访问 `/health`；再检查 `VITE_DEV_PROXY_TARGET` 或 `VITE_API_BASE_URL` |
 | 视频解析提示命令不存在 | 确认 `ffmpeg`、`tesseract` 可在终端执行，必要时配置 `FFMPEG_DIR`、`OCR_COMMAND` |
-| AI 接口返回 401 或模型不可用 | 检查 `SILICONFLOW_API_KEY` 与模型名称，修改后重启后端 |
+| AI 接口返回 401 或模型不可用 | 分镜检查 `STORYBOARD_API_KEY`，视频检查 `SEEDANCE_API_KEY`；原分析检查 `DEEPSEEK_API_KEY`，修改后重启后端 |
 | Maven 提示 `maven-default-http-blocker` | 在 `server` 目录执行 `./mvnw -s .mvn/central-settings.xml spring-boot:run`，临时绕过失效的用户级镜像 |
 
 停止本地中间件：

@@ -1,4 +1,5 @@
-param([string]$JdkHome = $env:JAVA_HOME, [string]$FfmpegDir = $env:FFMPEG_DIR, [int]$Port = 9095, [switch]$RecoverVideoTasks, [switch]$Seedance,
+[CmdletBinding()]
+param([string]$JdkHome = $env:JAVA_HOME, [string]$FfmpegDir = $env:FFMPEG_DIR, [int]$Port = 9095, [switch]$Seedance,
     [ValidateRange(1, 300)][int]$DependencyReadyTimeoutSeconds = 60)
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $PSScriptRoot
@@ -24,8 +25,11 @@ if (Test-Path -LiteralPath $taskPidFile) {
     $taskProcess = Get-CimInstance Win32_Process -Filter "ProcessId = $taskRecordedPid"
     if ($taskProcess -and -not (Test-AigcJavaProcess $taskProcess)) { throw 'Saved PID belongs to another or unverifiable process. No process was stopped.' }
     if ($taskProcess) {
-        foreach ($taskFlag in @('paid', 'videoRecovery', 'seedance')) { if ($taskPrevious.$taskFlag -isnot [bool]) { throw 'Saved process mode cannot be verified; no dependencies were restarted.' } }
-        if ([bool]$taskPrevious.paid -or [bool]$taskPrevious.videoRecovery -ne [bool]$RecoverVideoTasks -or [bool]$taskPrevious.seedance -ne [bool]$Seedance -or [int]$taskPrevious.port -ne $Port) { throw 'Requested port/provider/recovery/paid mode differs from the running app. Stop it with scripts/stop-aigc.ps1, then start again.' }
+        foreach ($taskFlag in @('paid', 'seedance')) { if ($taskPrevious.$taskFlag -isnot [bool]) { throw 'Saved process mode cannot be verified; no dependencies were restarted.' } }
+        # Older launchers recorded this retired mode. Only an explicit false is safe to reuse.
+        $taskLegacyRecovery = $taskPrevious.PSObject.Properties['videoRecovery']
+        if ($taskLegacyRecovery -and ($taskLegacyRecovery.Value -isnot [bool] -or $taskLegacyRecovery.Value)) { throw 'Saved process has an enabled or unverifiable legacy recovery mode. Stop it with scripts/stop-aigc.ps1, then start again.' }
+        if ([bool]$taskPrevious.paid -or [bool]$taskPrevious.seedance -ne [bool]$Seedance -or [int]$taskPrevious.port -ne $Port) { throw 'Requested port/provider/paid mode differs from the running app. Stop it with scripts/stop-aigc.ps1, then start again.' }
         $taskRunningRecord = $taskPrevious
         $taskRunningCreationDate = $taskProcess.CreationDate
     }
@@ -73,10 +77,8 @@ $taskEnvironment['REDIS_HOST']='127.0.0.1'; $taskEnvironment['REDIS_PORT']='6380
 $taskEnvironment['MINIO_ENDPOINT']='http://127.0.0.1:9002'; $taskEnvironment['MINIO_ACCESS_KEY']='aigc-local'; $taskEnvironment['MINIO_SECRET_KEY']=$taskEnvironment['AIGC_MINIO_PASSWORD']; $taskEnvironment['MINIO_BUCKET']='aigc'
 $taskEnvironment['FFMPEG_DIR']=$FfmpegDir; $taskEnvironment['SERVER_PORT']="$Port"; $taskEnvironment['SERVER_ADDRESS']='127.0.0.1'
 # This local launcher is deliberately a no-paid-call demonstration, regardless of inherited shell settings.
-$taskEnvironment['GENERATION_PROVIDER']='mock'; $taskEnvironment['GENERATION_PAID_ENABLED']='false'; $taskEnvironment['GENERATION_API_KEY']=''
-$taskEnvironment['GENERATION_RECOVERY_ENABLED']='false'
-$taskEnvironment['GENERATION_BASE_URL']='https://api.siliconflow.cn/v1'; $taskEnvironment['GENERATION_ARTIFACT_HOSTS']=''
-$taskEnvironment['GENERATION_TEXT_MODEL']='Wan-AI/Wan2.2-T2V-A14B'; $taskEnvironment['GENERATION_IMAGE_MODEL']='Wan-AI/Wan2.2-I2V-A14B'
+$taskEnvironment['GENERATION_PROVIDER']='mock'; $taskEnvironment['GENERATION_PAID_ENABLED']='false'
+$taskEnvironment['GENERATION_TEXT_MODEL']='mock-video'; $taskEnvironment['GENERATION_IMAGE_MODEL']='mock-video'
 $taskEnvironment['SEEDANCE_API_KEY']=''; $taskEnvironment['SEEDANCE_BASE_URL']='https://ark.cn-beijing.volces.com/api/v3'
 $taskEnvironment['SEEDANCE_ARTIFACT_HOSTS']=''; $taskEnvironment['SEEDANCE_RECOVERY_ENABLED']='false'
 foreach ($taskKind in @('TEXT','IMAGE')) {
@@ -88,17 +90,6 @@ foreach ($taskKind in @('TEXT','IMAGE')) {
 }
 $taskEnvironment['GENERATION_AUTHORIZATION_ID']=''; $taskEnvironment['GENERATION_APPROVED_MODELS']=''; $taskEnvironment['GENERATION_MAX_PAID_TASKS']='0'
 $taskEnvironment['GENERATION_BUDGET_LIMIT']='0'; $taskEnvironment['GENERATION_RESERVATION_PER_TASK']='0'
-if ($RecoverVideoTasks) {
-    $taskVideoFile = Join-Path $taskLocal 'siliconflow-video.env'
-    if (-not (Test-Path -LiteralPath $taskVideoFile)) { throw 'Recovery requires the ignored local SiliconFlow configuration file.' }
-    foreach ($taskLine in Get-Content -LiteralPath $taskVideoFile) {
-        # Import credentials and archive configuration only. Never import submission permissions or budgets.
-        if ($taskLine -match '^(GENERATION_API_KEY|GENERATION_BASE_URL|GENERATION_ARTIFACT_HOSTS)=(.*)$') { $taskEnvironment[$Matches[1]]=$Matches[2].Trim() }
-    }
-    if (-not $taskEnvironment['GENERATION_API_KEY'] -or -not $taskEnvironment['GENERATION_ARTIFACT_HOSTS']) { throw 'Recovery requires the local SiliconFlow key and exact artifact hosts.' }
-    if ($taskEnvironment['GENERATION_BASE_URL'].TrimEnd('/') -ne 'https://api.siliconflow.cn/v1') { throw 'Recovery requires the official SiliconFlow endpoint.' }
-    $taskEnvironment['GENERATION_RECOVERY_ENABLED']='true'
-}
 if ($Seedance) {
     $taskSeedanceFile = Join-Path $taskLocal 'seedance-video.env'
     if (-not (Test-Path -LiteralPath $taskSeedanceFile)) { throw 'Seedance requires the ignored local seedance-video.env configuration.' }
@@ -156,7 +147,7 @@ try {
         if (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue) { throw "Port $Port became occupied before app launch; no unrelated process was stopped." }
         $taskJar = $taskExpectedJar
         $taskStarted = Start-Process -FilePath (Join-Path $JdkHome 'bin/java.exe') -ArgumentList @('-jar',('"'+$taskJar+'"')) -WorkingDirectory $taskRoot -WindowStyle Hidden -RedirectStandardOutput (Join-Path $taskLocal 'server.log') -RedirectStandardError (Join-Path $taskLocal 'server-error.log') -PassThru
-        @{pid=$taskStarted.Id;jar=$taskJar;port=$Port;videoRecovery=[bool]$RecoverVideoTasks;seedance=[bool]$Seedance;paid=$false} | ConvertTo-Json | Set-Content -LiteralPath $taskPidFile -Encoding utf8
+        @{pid=$taskStarted.Id;jar=$taskJar;port=$Port;seedance=[bool]$Seedance;paid=$false} | ConvertTo-Json | Set-Content -LiteralPath $taskPidFile -Encoding utf8
         $taskReady=$false
         for ($taskAttempt=0;$taskAttempt -lt 45;$taskAttempt++) {
             if ($taskStarted.HasExited) { throw 'AIGC app exited; inspect .local/server.log and server-error.log.' }
@@ -166,7 +157,6 @@ try {
         if (-not $taskReady) { throw 'AIGC app readiness timed out; inspect .local/server.log.' }
         Write-Output "AIGC is running: http://127.0.0.1:$Port/?storyboard"
         Write-Output "Provider=$($taskEnvironment['GENERATION_PROVIDER']); paid calls disabled. Local data persists in the dovideo-aigc-local project."
-        if ($RecoverVideoTasks) { Write-Output 'Existing SiliconFlow task query/archive recovery is enabled; new real submissions remain disabled.' }
     } finally { Pop-Location }
 } finally { foreach($taskName in $taskSaved.Keys) { [Environment]::SetEnvironmentVariable($taskName,$taskSaved[$taskName],'Process') } }
 } finally { foreach ($taskName in $taskDockerSaved.Keys) { [Environment]::SetEnvironmentVariable($taskName, $taskDockerSaved[$taskName], 'Process') } }

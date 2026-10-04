@@ -10,8 +10,9 @@ $taskComposeFile = Join-Path $taskRoot 'docker-compose.generation-it.yml'
 $taskProject = 'dovideo-generation-it-' + [Guid]::NewGuid().ToString('N').Substring(0, 12)
 $taskNames = @('JAVA_HOME', 'GENERATION_IT_FFMPEG_DIR', 'GENERATION_IT_DB_PASSWORD', 'GENERATION_IT_REDIS_PASSWORD',
     'GENERATION_IT_MINIO_PASSWORD', 'GENERATION_IT_DB_URL', 'GENERATION_IT_REDIS_PORT', 'GENERATION_IT_MINIO_URL',
-    'GENERATION_PROVIDER', 'GENERATION_PAID_ENABLED', 'GENERATION_RECOVERY_ENABLED', 'SEEDANCE_RECOVERY_ENABLED',
-    'STORYBOARD_PAID_ENABLED', 'GENERATION_API_KEY', 'SEEDANCE_API_KEY', 'STORYBOARD_API_KEY', 'SILICONFLOW_API_KEY')
+    'GENERATION_PROVIDER', 'GENERATION_PAID_ENABLED', 'SEEDANCE_RECOVERY_ENABLED',
+    'STORYBOARD_PAID_ENABLED', 'SEEDANCE_API_KEY', 'STORYBOARD_API_KEY', 'DEEPSEEK_API_KEY',
+    'ASR_ENABLED', 'ASR_API_KEY', 'EMBEDDING_ENABLED', 'EMBEDDING_API_KEY')
 $taskSavedEnvironment = @{}
 $taskComposeStarted = $false
 foreach ($taskName in $taskNames) {
@@ -48,10 +49,11 @@ try {
     # Match the Linux harness: never inherit paid runtime settings or credentials into acceptance.
     $env:GENERATION_PROVIDER = 'mock'
     $env:GENERATION_PAID_ENABLED = 'false'
-    $env:GENERATION_RECOVERY_ENABLED = 'false'
     $env:SEEDANCE_RECOVERY_ENABLED = 'false'
     $env:STORYBOARD_PAID_ENABLED = 'false'
-    foreach ($taskCredential in @('GENERATION_API_KEY', 'SEEDANCE_API_KEY', 'STORYBOARD_API_KEY', 'SILICONFLOW_API_KEY')) {
+    $env:ASR_ENABLED = 'false'
+    $env:EMBEDDING_ENABLED = 'false'
+    foreach ($taskCredential in @('SEEDANCE_API_KEY', 'STORYBOARD_API_KEY', 'DEEPSEEK_API_KEY', 'ASR_API_KEY', 'EMBEDDING_API_KEY')) {
         [Environment]::SetEnvironmentVariable($taskCredential, $null, 'Process')
     }
     & docker info --format '{{.ServerVersion}}'

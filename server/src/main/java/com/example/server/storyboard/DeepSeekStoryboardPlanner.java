@@ -46,8 +46,7 @@ public class DeepSeekStoryboardPlanner {
         var messages = List.of(Map.of("role","system","content",system), Map.of("role","user","content",json.writeValueAsString(input)));
         Map<String,Object> body=new LinkedHashMap<>(Map.of("model",properties.getModel(),"messages",messages,"stream",false,
                 "response_format",Map.of("type","json_object"),"max_tokens",properties.getMaxTokens()));
-        if ("api.siliconflow.cn".equals(java.net.URI.create(properties.getBaseUrl()).getHost())) body.put("enable_thinking",false);
-        else body.put("thinking",Map.of("type","disabled"));
+        body.put("thinking",Map.of("type","disabled"));
         String payload=json.writeValueAsString(body);
         if (payload.getBytes(java.nio.charset.StandardCharsets.UTF_8).length>32_000) throw new IllegalArgumentException("分镜输入过长");
         return payload;

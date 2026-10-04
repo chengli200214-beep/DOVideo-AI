@@ -29,6 +29,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
@@ -62,9 +63,9 @@ public class DeepSeekUtils {
     private final double inputPricePerMillion;
     private final double outputPricePerMillion;
 
-    public DeepSeekUtils(@Value("${ai.deepseek.api-key}") String apiKey,
-                         @Value("${ai.deepseek.base-url}") String baseUrl,
-                         @Value("${ai.deepseek.model:deepseek-ai/DeepSeek-V3.2}") String modelName,
+    public DeepSeekUtils(@Value("${ai.deepseek.api-key:}") String apiKey,
+                         @Value("${ai.deepseek.base-url:https://api.deepseek.com}") String baseUrl,
+                         @Value("${ai.deepseek.model:deepseek-flash}") String modelName,
                          @Value("${ai.deepseek.timeout-seconds:300}") long timeoutSeconds,
                          @Value("${ai.deepseek.input-price-per-million:0}") double inputPricePerMillion,
                          @Value("${ai.deepseek.output-price-per-million:0}") double outputPricePerMillion,
@@ -81,8 +82,12 @@ public class DeepSeekUtils {
         if (maxEstimatedCost > 0 && (inputPricePerMillion == 0 || outputPricePerMillion == 0)) {
             throw new IllegalArgumentException("启用 Agent 成本预算时必须配置输入和输出 Token 单价");
         }
-        this.chatModel = OpenAiChatModel.builder()
-                .baseUrl(baseUrl)
+        String officialBaseUrl = officialBaseUrl(baseUrl);
+        if (modelName == null || modelName.isBlank()) throw new IllegalArgumentException("请配置 ai.deepseek.model 官方模型名称");
+        // The legacy analysis surface can remain unavailable while the creation
+        // workbench runs. Never manufacture a key or borrow an ASR/embedding key.
+        this.chatModel = apiKey == null || apiKey.isBlank() ? null : OpenAiChatModel.builder()
+                .baseUrl(officialBaseUrl)
                 .apiKey(apiKey)
                 .modelName(modelName)
                 // Long-video evidence prompts can take longer than the SDK default timeout.
@@ -96,6 +101,20 @@ public class DeepSeekUtils {
         this.modelTimeoutMs = TimeUnit.SECONDS.toMillis(timeoutSeconds);
         this.inputPricePerMillion = inputPricePerMillion;
         this.outputPricePerMillion = outputPricePerMillion;
+    }
+
+    private static String officialBaseUrl(String value) {
+        URI base;
+        try { base = URI.create(value); } catch (RuntimeException invalid) {
+            throw new IllegalArgumentException("ai.deepseek.base-url 仅支持官方 https://api.deepseek.com");
+        }
+        if (!"https".equals(base.getScheme()) || !"api.deepseek.com".equals(base.getHost())
+                || base.getUserInfo() != null || base.getQuery() != null || base.getFragment() != null
+                || (base.getPort() != -1 && base.getPort() != 443)
+                || !java.util.Set.of("", "/", "/v1", "/v1/").contains(base.getPath())) {
+            throw new IllegalArgumentException("ai.deepseek.base-url 仅支持官方 https://api.deepseek.com（可带 /v1）");
+        }
+        return value.replaceAll("/+$", "");
     }
 
     /** 兼容旧调用方:无模式指令 = 通用规划,prompt 与引入模式前逐字节一致。 */
@@ -436,6 +455,7 @@ public class DeepSeekUtils {
     }
 
     private ChatResponse invokeModel(ChatRequest request) {
+        if (chatModel == null) throw new NonRetriableException("DeepSeek 分析服务未配置：请设置 ai.deepseek.api-key，其他服务密钥不会被复用");
         long remainingBudgetMs = AgentExecutionBudget.remainingMillis();
         long timeoutMs = Math.min(modelTimeoutMs, remainingBudgetMs);
         Future<ChatResponse> future;

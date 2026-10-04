@@ -25,7 +25,7 @@ public class StoryboardModelProperties {
         URI base;
         try { base = URI.create(baseUrl); } catch (RuntimeException invalid) { throw unavailable(); }
         if (!"https".equals(base.getScheme()) || base.getUserInfo()!=null || base.getQuery()!=null || base.getFragment()!=null
-                || base.getHost()==null || !java.util.Set.of("api.deepseek.com", "api.siliconflow.cn").contains(base.getHost())
+                || !"api.deepseek.com".equals(base.getHost())
                 || (base.getPort()!=-1 && base.getPort()!=443)
                 || !java.util.Set.of("", "/", "/v1", "/v1/").contains(base.getPath())
                 || apiKey == null || apiKey.isBlank() || model==null || !model.matches("[A-Za-z0-9_./:-]{1,80}")
@@ -48,7 +48,7 @@ public class StoryboardModelProperties {
                 .divide(BigDecimal.valueOf(1_000_000), 6, java.math.RoundingMode.CEILING);
     }
     private static boolean positive(BigDecimal value) { return value!=null && value.signum()>0 && value.scale()<=6 && value.compareTo(new BigDecimal("999999999999.999999"))<=0; }
-    private static BusinessException unavailable() { return new BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "DeepSeek 分镜配置不完整：需单独授权模型、次数、币种、价格与预算"); }
+    private static BusinessException unavailable() { return new BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "DeepSeek 分镜配置不完整：仅支持官方 api.deepseek.com，需单独授权模型、次数、币种、价格与预算"); }
     public boolean isPaidEnabled() { return paidEnabled; } public void setPaidEnabled(boolean v) { paidEnabled=v; }
     public String getApiKey() { return apiKey; } public void setApiKey(String v) { apiKey=v; }
     public String getBaseUrl() { return baseUrl; } public void setBaseUrl(String v) { baseUrl=v; }

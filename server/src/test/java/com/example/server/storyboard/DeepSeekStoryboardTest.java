@@ -177,11 +177,24 @@ class DeepSeekStoryboardTest {
         var second=service.submit(1,id,"second",1); properties.setModel("deepseek-v4-pro"); properties.setApprovedModel("deepseek-v4-pro"); worker.process(second.id());
         assertEquals("BLOCKED",service.get(1,id,second.id()).status()); assertEquals(0,server.getRequestCount());
     }
-    @Test void siliconFlowUsesItsOwnThinkingFieldAndDoesNotReceivePrivateAssetIdentifier() throws Exception {
-        properties.setBaseUrl("https://api.siliconflow.cn/v1"); properties.setModel("deepseek-ai/DeepSeek-V3.2"); properties.setApprovedModel(properties.getModel());
+    @Test void officialDeepSeekUsesThinkingFieldAndDoesNotReceivePrivateAssetIdentifier() throws Exception {
         var imageBrief=new CreativeBrief(brief.title(),brief.goal(),brief.productName(),brief.sellingPoints(),brief.style(),10,"9:16","private-asset-id",2);
-        var body=json.readTree(planner.prepare(imageBrief)); assertFalse(body.path("enable_thinking").asBoolean(true)); assertFalse(body.has("thinking"));
+        var body=json.readTree(planner.prepare(imageBrief)); assertFalse(body.has("enable_thinking")); assertEquals("disabled",body.path("thinking").path("type").asText());
         assertFalse(body.toString().contains("private-asset-id"));
+    }
+    @Test void removedProxyEndpointIsRejectedBeforeReservationAndWhenAQueuedWorkerRechecksIt() throws Exception {
+        String id=project("official-only");
+        properties.setBaseUrl("https://api.siliconflow.cn/v1");
+        assertFalse(service.runtime().ready());
+        assertThrows(BusinessException.class,()->service.submit(1,id,"blocked",1));
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM storyboard_model_tasks",Integer.class));
+        assertEquals(0,repository.budget("test-auth").usedCalls());
+        properties.setBaseUrl("https://api.deepseek.com");
+        var task=service.submit(1,id,"queued",1);
+        properties.setBaseUrl("https://api.siliconflow.cn/v1");
+        worker.process(task.id());
+        assertEquals("BLOCKED",service.get(1,id,task.id()).status());
+        assertEquals(0,server.getRequestCount());
     }
     @Test void apiRequiresAuthenticationOwnershipAndExplicitGateAndDoesNotExposeCredentials() throws Exception {
         var auth=mock(AuthService.class); when(auth.resolveUser("Bearer owner")).thenReturn(1L); when(auth.resolveUser("Bearer other")).thenReturn(2L);

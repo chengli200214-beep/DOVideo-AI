@@ -1,0 +1,61 @@
+{
+  "verifiedAt": "2026-10-04T22:23:17+08:00",
+  "baseCommit": "13de298e88b5ed55a917feee012f8464f6729079",
+  "paidProviders": [
+    "DeepSeek official",
+    "Seedance"
+  ],
+  "freeTestProvider": "Mock",
+  "siliconFlowExecutableAdapterRemoved": true,
+  "deepSeekProxyEndpointsRejected": true,
+  "legacyAsrAndEmbedding": "Disabled by default; separate optional credentials and endpoints, no DeepSeek-key reuse",
+  "backendRegression": {
+    "tests": 153,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cleanBuild": true
+  },
+  "frontendRegression": {
+    "tests": 77,
+    "failures": 0,
+    "build": "PASS"
+  },
+  "infrastructure": {
+    "tests": 1,
+    "checks": 21,
+    "result": "PASS",
+    "provider": "mock",
+    "isolatedContainersRemoved": true
+  },
+  "windowsStartup": {
+    "readinessTests": 11,
+    "startupTests": 21,
+    "shells": [
+      "PowerShell 7",
+      "Windows PowerShell 5.1"
+    ],
+    "result": "PASS"
+  },
+  "deployment": {
+    "composeConfig": "PASS",
+    "bashSyntax": "PASS",
+    "standaloneJar": "PASS",
+    "retiredProviderAbsentFromJar": true,
+    "bundledWorkbench": true
+  },
+  "runtime": {
+    "provider": "mock",
+    "videoPaidEnabled": false,
+    "storyboardPaidEnabled": false,
+    "historicalVideoTasksReadable": 4,
+    "historicalUnknownTasksPreserved": 3,
+    "historicalRecoveryDisabled": true,
+    "historicalTraceReadable": true,
+    "historicalArtifactHashVerified": true,
+    "projectAssetFilmAndLedgerSnapshotUnchanged": true
+  },
+  "newPaidModelRequests": 0,
+  "githubActions": "Local validation; remote results must be checked separately",
+  "scope": "Provider simplification and compatibility; existing real model results remain historical evidence"
+}

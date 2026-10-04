@@ -19,13 +19,13 @@ class GenerationSchedulingRecoveryTest {
     }
 
     @Test void disabledSubmissionAndRecoveryTasksDoNotStarveAnEnabledProvider() throws Exception {
-        var disabled = spy(new SiliconFlowGenerationProvider(flow.properties, flow.json));
+        var disabled = spy(new SeedanceGenerationProvider(flow.properties, flow.json));
         flow.service = new GenerationService(flow.repository, flow.properties,
                 List.of(flow.provider, disabled), flow.json, flow.artifacts, flow.assets);
         flow.worker = new GenerationWorker(flow.repository, flow.service, flow.json, flow.artifacts);
         for (int i = 0; i < 8; i++) {
             String id = "disabled-" + i;
-            flow.repository.insert(id, 1, id, "hash", "siliconflow", "model",
+            flow.repository.insert(id, 1, id, "hash", "seedance", SeedanceGenerationProvider.MODEL,
                     flow.json.writeValueAsString(flow.text), 0);
             if (i % 2 == 1) {
                 var claimed = flow.repository.claim(id, System.currentTimeMillis());

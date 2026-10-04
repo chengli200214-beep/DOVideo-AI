@@ -11,37 +11,47 @@ import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+/** Legacy class name retained for callers; the endpoint is an optional multipart ASR service. */
 @Component
 public class AliyunAsrUtils {
 
     private static final Logger log = LoggerFactory.getLogger(AliyunAsrUtils.class);
     private static final int MAX_ATTEMPTS = 3;
 
+    private final boolean enabled;
     private final String apiKey;
     private final String transcriptionUrl;
     private final String model;
-    private final OkHttpClient client = new OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(3, TimeUnit.MINUTES)
-            .writeTimeout(3, TimeUnit.MINUTES)
-            .retryOnConnectionFailure(true)
-            .build();
+    private final OkHttpClient client;
 
-    public AliyunAsrUtils(@Value("${ai.deepseek.api-key}") String apiKey,
-                          @Value("${ai.asr.url}") String transcriptionUrl,
-                          @Value("${ai.asr.model}") String model) {
+    @Autowired
+    public AliyunAsrUtils(@Value("${ai.asr.enabled:false}") boolean enabled,
+                          @Value("${ai.asr.api-key:}") String apiKey,
+                          @Value("${ai.asr.url:}") String transcriptionUrl,
+                          @Value("${ai.asr.model:}") String model) {
+        this(enabled, apiKey, transcriptionUrl, model, new OkHttpClient.Builder());
+    }
+
+    AliyunAsrUtils(boolean enabled, String apiKey, String transcriptionUrl, String model, OkHttpClient.Builder builder) {
+        this.enabled = enabled;
         this.apiKey = apiKey;
         this.transcriptionUrl = transcriptionUrl;
         this.model = model;
+        this.client = builder.connectTimeout(30, TimeUnit.SECONDS).readTimeout(3, TimeUnit.MINUTES)
+                .writeTimeout(3, TimeUnit.MINUTES).callTimeout(3, TimeUnit.MINUTES)
+                .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build();
     }
 
     public String audioToText(String filePath) {
+        // A missing optional service is configuration, not a retryable pipeline failure.
+        OptionalAiServiceEndpoint.require(enabled, apiKey, transcriptionUrl, model, "ai.asr");
         File file = new File(filePath);
         // 这里的音频是本流水线上一步用 ffmpeg 切出来的，缺失属于「意外状态」而非「调用方参数错误」，
         // 重跑流水线可以重新生成，因此用 IllegalStateException 保持它可重试，

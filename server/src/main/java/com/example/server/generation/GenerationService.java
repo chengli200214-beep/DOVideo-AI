@@ -140,6 +140,10 @@ public class GenerationService {
     }
 
     GenerationProvider provider(String name) {
+        if ("siliconflow".equals(name)) {
+            throw new BusinessException(ErrorCode.CONFLICT,
+                    "SiliconFlow 视频服务已停用；历史任务与已归档产物仍可查看，无法继续提交或恢复");
+        }
         return providers.stream().filter(p -> p.name().equals(name)).findFirst()
                 .orElseThrow(() -> new BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "视频生成 provider 不可用"));
     }

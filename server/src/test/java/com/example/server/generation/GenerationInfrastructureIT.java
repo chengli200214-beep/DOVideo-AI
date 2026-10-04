@@ -108,8 +108,8 @@ class GenerationInfrastructureIT {
                 "--minio.accessKey=generation-it",
                 "--minio.secretKey=" + required("GENERATION_IT_MINIO_PASSWORD"),
                 "--minio.bucketName=generation-it",
-                "--generation.provider=mock", "--generation.paid-enabled=false", "--generation.api-key=",
-                "--generation.recovery-enabled=false", "--generation.seedance.recovery-enabled=false",
+                "--generation.provider=mock", "--generation.paid-enabled=false",
+                "--generation.seedance.recovery-enabled=false",
                 "--generation.seedance.api-key=", "--storyboard.model.paid-enabled=false", "--storyboard.model.api-key=",
                 "--generation.worker-delay-ms=100",
                 "--generation.worker-initial-delay-ms=" + (paused ? "600000" : "0")

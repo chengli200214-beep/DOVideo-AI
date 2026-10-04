@@ -42,7 +42,7 @@ class SeedanceGenerationProviderTest {
                 .body(ResponseBody.create(body, MediaType.get("application/json"))).build();
     }
     @Test void textAndPrivateImageWireContractsUseDedicatedKeyAndFixedParameters() throws Exception {
-        var properties = config(); properties.setApiKey("old-siliconflow-key");
+        var properties = config();
         List<Request> calls = new ArrayList<>();
         var provider = new SeedanceGenerationProvider(properties, json, new OkHttpClient.Builder().addInterceptor(chain -> {
             calls.add(chain.request()); return response(chain.request(), 200, "{\"id\":\"cgt-original\"}");
@@ -148,9 +148,10 @@ class SeedanceGenerationProviderTest {
             assertThrows(IOException.class, () -> provider.poll(task()));
         }
     }
-    @Test void historicalProviderArchiveHostsRemainIsolated() {
-        var properties=config(); properties.setArtifactHosts("siliconflow.example.com"); properties.getSeedance().setArtifactHosts("ark.example.com");
-        assertEquals("siliconflow.example.com",properties.artifactHostsFor("siliconflow"));
+    @Test void onlySeedanceCanDownloadFromConfiguredProviderHosts() {
+        var properties=config(); properties.getSeedance().setArtifactHosts("ark.example.com");
+        assertEquals("",properties.artifactHostsFor("siliconflow"));
+        assertEquals("",properties.artifactHostsFor("unknown-provider"));
         assertEquals("ark.example.com",properties.artifactHostsFor("seedance"));
     }
 }

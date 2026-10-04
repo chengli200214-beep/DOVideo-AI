@@ -20,7 +20,7 @@ import org.springframework.context.annotation.Import;
 @MapperScan(basePackageClasses=UserMapper.class)
 @Import({AuthService.class,AuthInterceptor.class,WebConfig.class,UserController.class,ApiExceptionHandler.class,MinioConfig.class,MinioUtils.class,
     GenerationProperties.class,GenerationRepository.class,GenerationService.class,GenerationWorker.class,GenerationSchedulingConfig.class,GenerationAssetService.class,
-    MockGenerationProvider.class,SiliconFlowGenerationProvider.class,SeedanceGenerationProvider.class,MinioGenerationArtifactStore.class,GenerationController.class,GenerationInputController.class,
+    MockGenerationProvider.class,SeedanceGenerationProvider.class,MinioGenerationArtifactStore.class,GenerationController.class,GenerationInputController.class,
     GenerationAssetLifecycleService.class,GenerationAssetLibraryController.class,
     StoryboardRepository.class,StoryboardService.class,TemplateStoryboardPlanner.class,StoryboardController.class,ShotGenerationService.class,ShotGenerationController.class,
     StoryboardModelProperties.class,StoryboardModelRepository.class,StoryboardModelService.class,DeepSeekStoryboardPlanner.class,StoryboardModelWorker.class,StoryboardModelController.class,

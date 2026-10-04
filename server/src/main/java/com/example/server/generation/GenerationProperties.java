@@ -8,21 +8,15 @@ import org.springframework.stereotype.Component;
 public class GenerationProperties {
     private String provider = "mock";
     private boolean paidEnabled = false;
-    private boolean recoveryEnabled = false;
-    public boolean isRecoveryEnabled() { return recoveryEnabled; }
-    public void setRecoveryEnabled(boolean value) { recoveryEnabled = value; }
-    private String apiKey = "";
-    private String baseUrl = "https://api.siliconflow.cn/v1";
-    private String textModel = "Wan-AI/Wan2.2-T2V-A14B";
-    private String imageModel = "Wan-AI/Wan2.2-I2V-A14B";
-    private String artifactHosts = "";
+    private String textModel = SeedanceGenerationProvider.MODEL;
+    private String imageModel = SeedanceGenerationProvider.MODEL;
     private Seedance seedance = new Seedance();
     public Seedance getSeedance() { return seedance; }
     public void setSeedance(Seedance value) { seedance = value; }
     public String artifactHostsFor(String provider) {
-        return "seedance".equals(provider) ? seedance.getArtifactHosts() : artifactHosts;
+        return "seedance".equals(provider) ? seedance.getArtifactHosts() : "";
     }
-    /** Separate credentials keep recovery of SiliconFlow tasks independent of the selected provider. */
+    /** Recovery of existing Seedance tasks can be enabled without enabling new paid submissions. */
     public static class Seedance {
         private String apiKey = "";
         private String baseUrl = "https://ark.cn-beijing.volces.com/api/v3";
@@ -103,14 +97,8 @@ public class GenerationProperties {
     public void setProvider(String value) { provider = value; }
     public boolean isPaidEnabled() { return paidEnabled; }
     public void setPaidEnabled(boolean value) { paidEnabled = value; }
-    public String getApiKey() { return apiKey; }
-    public void setApiKey(String value) { apiKey = value; }
-    public String getBaseUrl() { return baseUrl; }
-    public void setBaseUrl(String value) { baseUrl = value; }
     public String getTextModel() { return textModel; }
     public void setTextModel(String value) { textModel = value; }
     public String getImageModel() { return imageModel; }
     public void setImageModel(String value) { imageModel = value; }
-    public String getArtifactHosts() { return artifactHosts; }
-    public void setArtifactHosts(String value) { artifactHosts = value; }
 }

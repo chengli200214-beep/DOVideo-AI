@@ -6,10 +6,15 @@ public interface GenerationProvider {
     default void requireRecoveryEnabled() { requireEnabled(); }
     /** Validate loaded private inputs before the durable paid submission boundary. */
     default void validateRequest(String model, GenerationRequest request) { }
-    /** Persist provider-specific parameters without embedded private image bytes. */
+    /** Neutral input summary; concrete providers override this with their redacted wire parameters. */
     default java.util.Map<String, Object> submissionParameters(String model, GenerationRequest request) {
-        var parameters = SiliconFlowGenerationProvider.submissionBody(model, request);
-        parameters.remove("image");
+        var parameters = new java.util.LinkedHashMap<String, Object>();
+        parameters.put("model", model);
+        parameters.put("kind", request.kind());
+        parameters.put("prompt", request.prompt());
+        parameters.put("imageSize", request.imageSize());
+        if (request.negativePrompt() != null) parameters.put("negativePrompt", request.negativePrompt());
+        if (request.seed() != null) parameters.put("seed", request.seed());
         return parameters;
     }
     String submit(GenerationTask task, GenerationRequest request) throws Exception;

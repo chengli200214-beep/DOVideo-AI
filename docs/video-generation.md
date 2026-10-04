@@ -1,6 +1,6 @@
-# 视频生成任务：第一阶段联调准备
+# 视频生成任务与归档
 
-> 最新验收（2026-10-02）：Seedance Mini 已完成 1 次真实文生、3 次真实图生、私有归档及 15.146 秒带字幕成片；117 项后端回归通过。当前实例运行真实生成模式，用户已授权不限次数与预算。真实结果见 [Seedance 接入与验收](seedance-video.md)、[成片](acceptance/seedance-film.mp4) 和 [脱敏验收记录](acceptance/seedance-real.json)。下文分阶段测试与旧运行配置保留为历史记录；项目按本次确认范围已完成。按用户要求，实际账单核对、正式人工评分及历史 SiliconFlow 三笔未知提交核实均移出验收范围，不再作为待办；费用未知、未评分和旧任务状态保留原记录。
+> 当前付费服务仅接入 Seedance；DeepSeek 官方负责上游文字分镜，Mock 保留为免费测试。模型配置见 [DeepSeek 与 Seedance](model-providers.md)。以下早期测试记录保留历史口径，最新回归见 [修复记录](review-2026-10-04.md)。历史服务适配器已移除，旧记录与产物保留。
 
 
 原项目的 `/analysis` 负责视频理解。本次新增 `/generation/tasks`，负责文生视频／图生视频的提交、异步查询和产物保存。两条链路共用登录鉴权、MySQL、MinIO，生成任务独立保存，避免混用分析任务状态。
@@ -78,9 +78,9 @@ Content-Type: application/json
 
 首次提交返回 **202**：`data.task.id` 为本地任务 ID，`data.reused=false`。相同用户、相同 key、相同归一化参数返回 **200** 和原任务（包括已失败或已完成的任务）；相同 key 用于不同参数返回 **409**。key 区分大小写，允许 1–128 位 ASCII 字母、数字和 `_.:-`。主动生成另一个视频时使用新 key。
 
-图生视频先通过 `POST /generation/assets` 上传图片，再以 `kind=IMAGE_TO_VIDEO` 和 `referenceImageId=<返回的素材 ID>` 提交。图片最大 5 MiB、边长最大 4096，校验声明格式、尺寸和完整解码。同一用户相同 SHA-256 去重；素材 key 位于 `generation-inputs/{userId}/{sha256}.png|jpg`，预览和读取均校验所有权，桶保持私有。
+图生视频先通过 `POST /generation/assets` 上传图片，再以 `kind=IMAGE_TO_VIDEO` 和 `referenceImageId=<返回的素材 ID>` 提交。图片最大 5 MiB、边长最大 4096，校验声明格式、尺寸和完整解码。同一用户相同 SHA-256 去重；素材对象使用每次新建独立的 UUID 名称，预览和读取均校验所有权，桶保持私有。
 
-兼容旧请求的 `image=data:image/png;base64,...` 或 JPEG data URL：提交前先归档为素材，任务只存素材 ID。不能同时提供 image 与 referenceImageId。原 V4 已存的内联任务仍可执行，但追溯接口不返回其 base64。新 worker 在内存中读取归档图片、核对大小与 SHA-256 后生成供应商所需 data URL，不需要向模型平台公开 MinIO。对象写入成功、数据库插入失败时可能存在孤立对象；相同内容重传会复用固定 key，生命周期清理尚未实现。
+兼容旧请求的 `image=data:image/png;base64,...` 或 JPEG data URL：提交前先归档为素材，任务只存素材 ID。不能同时提供 image 与 referenceImageId。原 V4 已存的内联任务仍可执行，但追溯接口不返回其 base64。新 worker 在内存中读取归档图片、核对大小与 SHA-256 后生成供应商所需 data URL，不需要向模型平台公开 MinIO。未引用素材可通过素材库删除，重复上传的多余对象进入持久化清理队列；历史引用受保护，不做全桶孤儿扫描。
 
 默认尺寸为 `1280x720`、`720x1280`、`960x960`；prompt 非空、最多 2000 字；负向提示最多 2000 字；seed 可省略，提供时需非负。模型名称由服务端配置决定。各模式的 enabled、sizes、negative-prompt、seed、max-prompt-length 分别配置在 `generation.text.*` 与 `generation.image.*`（环境变量见 `.env.example`）。更换模型须同步配置其实际能力；前端从 capabilities 接口生成选项，后端独立校验。不存在通用 duration 参数。
 
@@ -132,7 +132,7 @@ stateDiagram-v2
 
 - **并发幂等**：数据库唯一约束 `(user_id,idempotency_key)` 决定唯一任务身份，`request_hash` 校验规范化生成参数。后台通过原子条件更新领取五分钟租约，并以 `lease_token` 防止过期 worker 覆盖新状态。
 - **重启恢复**：QUEUED、RUNNING、SAVING 的租约过期后自动继续。SUBMITTING 过期转为 SUBMISSION_UNKNOWN，不自动发出第二次模型提交。
-- **提交边界**：先持久化 SUBMITTING 再发 POST。提交请求关闭 HTTP 隐式重试和重定向；4xx（408 除外）视为明确拒绝；408、网络错误、5xx 或不完整成功响应视为结果未知。平台的 `X-Trace-Id` 使用本地 task ID，便于核对，**不视为供应商幂等保证**。脱敏分类保留 HTTP 状态、传输错误、无效响应或缺失 requestId，不保存供应商响应正文；旧任务缺失的错误细节不会被事后补造。
+- **提交边界**：先持久化 SUBMITTING 再发 POST。提交请求关闭 HTTP 隐式重试和重定向；4xx（408 除外）视为明确拒绝；408、网络错误、5xx 或不完整成功响应视为结果未知。Seedance 的 `X-Client-Request-Id` 使用本地 task ID，便于核对，**不视为供应商幂等保证**。脱敏分类保留 HTTP 状态、传输错误、无效响应或缺失 requestId，不保存供应商响应正文；旧任务缺失的错误细节不会被事后补造。
 - **可追溯性**：原始提示词与规范化输入分开保存；SUBMITTING 与最终参数快照、预算预留在短事务内一起提交。状态变化、错误码／错误次数、人工恢复与补录事件同步保存；不为每次正常 RUNNING 轮询重复生成事件。参考图片以 ID、大小、格式和 SHA-256 记录，快照中不保存图片 base64、API key 或临时签名链接。已有 V4 任务不会伪造历史时间线。
 - **提交前失败**：图片读取／完整性检查或参数准备失败时标记 SUBMISSION_PREPARATION_FAILED；授权策略变更或额度耗尽时标记 SUBMISSION_AUTHORIZATION_DENIED。两类均未调用供应商，不标记未知提交。
 - **保存恢复**：MinIO 固定路径 `generated/{userId}/{taskId}/video.mp4`；数据库保存对象 key、大小与 SHA-256。写入后数据库确认失败时可以重写同一对象，不会产生随机命名的重复对象。保存失败后重新查询供应商以刷新临时链接，不重新生成视频。
@@ -151,13 +151,11 @@ Content-Type: application/json
 
 补录仅修改本地状态，不执行模型提交。必须先用本地 task ID 对应的 trace 信息核实原任务，避免误绑定供应商账户内的其他视频。`(provider,remote_id)` 唯一约束禁止同一模型任务重复绑定。若供应商无法查明未知提交的结果，保留 SUBMISSION_UNKNOWN；本系统不会声称可以实现跨供应商网络边界的严格 exactly-once。
 
-`GENERATION_RECOVERY_ENABLED` 默认 false，可独立开放已有任务的状态查询与归档，不授予付费生成权限。仍需有效供应商密钥、HTTPS 地址和精确产物域名配置。`GENERATION_PAID_ENABLED=false` 时，新提交及真实 QUEUED 任务仍被拦截；查询、保存和已核实 requestId 的补录不增加调用次数或预算预留。无效 requestId 不发状态请求，恢复开关关闭时补录／retry 拒绝而保留原记录。原任务未知费用预留保持不变。
+`SEEDANCE_RECOVERY_ENABLED` 默认 false，可独立开放已有任务的状态查询与归档，不授予付费生成权限。仍需有效供应商密钥、HTTPS 地址和精确产物域名配置。`GENERATION_PAID_ENABLED=false` 时，新提交及真实 QUEUED 任务仍被拦截；查询、保存和已核实 requestId 的补录不增加调用次数或预算预留。无效 requestId 不发状态请求，恢复开关关闭时补录／retry 拒绝而保留原记录。原任务未知费用预留保持不变。
 
-## 真实模型接入配置（首次开发时未执行）
+## Seedance 配置
 
-SiliconFlow 适配器按官方 [提交接口](https://api-docs.siliconflow.cn/docs/api/video-submit-post) 与 [状态接口](https://api-docs.siliconflow.cn/docs/api/video-status-post) 实现，调用 `/video/submit` 和 `/video/status`，支持文生与图生。模型默认示例为 Wan2.2 的 T2V/I2V；上线前需核实账户可用模型和计费。
-
-**本次未启动任何付费模型调用。** 用户确认真实调用的模型与预算后，操作人员才可配置 `GENERATION_PROVIDER=siliconflow`、`GENERATION_PAID_ENABLED=true`、专用 `GENERATION_API_KEY`。需配置 `GENERATION_ARTIFACT_HOSTS` 为供应商视频输出域名的精确逗号分隔白名单，禁止通配符。缺少 key 或白名单也会拒绝真实调用。真实开关同时在 API 提交与 worker 执行前检查；关闭开关不会自动提交已入队的真实任务。已有 mock 任务保留其原 provider。
+视频服务只保留 Seedance，通过方舟创建任务和查询任务接口运行。`GENERATION_PROVIDER=seedance` 使用专用 `SEEDANCE_API_KEY`、`SEEDANCE_BASE_URL` 和精确 `SEEDANCE_ARTIFACT_HOSTS`。真实调用前配置授权与能力，普通启动器仍关闭付费调用，详见 [Seedance 接入](seedance-video.md) 和 [模型配置](model-providers.md)。旧供应商任务不可恢复，已归档产物仍可读取。
 
 付费开关还需配合下列显式授权字段，默认空／0 均禁止新提交：
 
@@ -185,7 +183,9 @@ SiliconFlow 适配器按官方 [提交接口](https://api-docs.siliconflow.cn/do
 
 分镜、镜头版本、创作工作台、成片合成及人工质量与成本报告已接入，完整运行方式及当前验收见 [创作平台说明](creator-platform.md)。上文为第一阶段历史记录，不代表新增功能的最终验收。生产规模能力仍受对象生命周期、实际计费对账、任务取消、并发控制与长任务租约续期限制；机器需同步时钟。
 
-## SiliconFlow 真实联调补充（2026-10-02）
+## 历史验收归档：SiliconFlow（已停用）
+
+以下记录保留原验收事实，当前版本已移除旧适配器；此处旧恢复说明不再适用。
 
 收到专用密钥并按用户授权执行最多 4 次、总预算 10 CNY 的视频联调。`Wan-AI/Wan2.2-T2V-A14B` 一次提交成功：真实 H.264 视频 720×1280、5.0625 秒，311942 字节，私有 MinIO 归档与下载 SHA-256 一致。首次归档因精确域名白名单不匹配而失败；核实实际输出域名 `s3.6scloud.com` 后恢复原任务查询和保存，未重新生成。生成中应用重启、重复原意图均复用同一本地与供应商任务，额度不增加。
 

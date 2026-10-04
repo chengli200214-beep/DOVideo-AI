@@ -84,16 +84,16 @@ class GenerationPreparationTest {
     }
 
     void approve(int max, String budget, String perTask) {
-        flow.properties.setProvider("siliconflow"); flow.properties.setPaidEnabled(true);
+        flow.properties.setProvider("seedance"); flow.properties.setPaidEnabled(true);
         flow.properties.setAuthorizationId("offline-approval-test");
         flow.properties.setApprovedModels(List.of(flow.properties.getTextModel()));
         flow.properties.setMaxPaidTasks(max); flow.properties.setBudgetLimit(new BigDecimal(budget));
         flow.properties.setReservationPerTask(new BigDecimal(perTask));
-        doReturn("siliconflow").when(flow.provider).name();
+        doReturn("seedance").when(flow.provider).name();
     }
     @Test void enablingPaidFlagAloneNeverPermitsSubmission() throws Exception {
-        flow.properties.setProvider("siliconflow"); flow.properties.setPaidEnabled(true);
-        doReturn("siliconflow").when(flow.provider).name();
+        flow.properties.setProvider("seedance"); flow.properties.setPaidEnabled(true);
+        doReturn("seedance").when(flow.provider).name();
         assertThrows(BusinessException.class, () -> flow.service.submit(1, "not-approved", flow.text));
         verify(flow.provider, never()).submit(any(), any());
     }

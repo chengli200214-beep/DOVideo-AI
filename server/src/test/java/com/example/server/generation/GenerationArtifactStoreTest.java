@@ -58,12 +58,17 @@ class GenerationArtifactStoreTest {
     @Test
     void rejectsUnapprovedSourcesBeforeAnyDownload() {
         var config = new GenerationProperties();
-        config.setArtifactHosts("approved.example.com");
+        config.getSeedance().setArtifactHosts("approved.example.com");
+        var realTask = new GenerationTask(task.id(), task.userId(), task.requestHash(), "seedance",
+                SeedanceGenerationProvider.MODEL, task.requestJson(), task.state(), task.remoteId(), task.sourceUrl(),
+                task.artifactKey(), task.artifactSize(), task.artifactSha256(), task.errorCode(), task.attempts(),
+                task.recoverable(), task.nextRunAt(), task.leaseToken(), task.leaseUntil(), task.createdAt(),
+                task.updatedAt(), task.submittedAt(), task.pollDeadlineAt());
         var store = new MinioGenerationArtifactStore(mock(MinioUtils.class), "media", "http://127.0.0.1:9000",
                 "test-key", "test-secret", config);
         for (String source : new String[]{"file:///etc/passwd", "http://approved.example.com/a.mp4",
                 "https://127.0.0.1/a.mp4", "https://other.example.com/a.mp4", "https://approved.example.com:444/a.mp4"}) {
-            assertThrows(IllegalArgumentException.class, () -> store.save(task, source));
+            assertThrows(IllegalArgumentException.class, () -> store.save(realTask, source));
         }
     }
 }

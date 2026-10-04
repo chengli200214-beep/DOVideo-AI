@@ -148,8 +148,8 @@ class ShotGenerationFlowTest {
         verify(flow.provider, never()).submit(any(), any());
     }
     @Test void closedPaidProviderCreatesNoTaskAndNoReservation() throws Exception {
-        ready(6); flow.properties.setProvider("siliconflow"); flow.properties.setReservationPerTask(new BigDecimal("6"));
-        var paid = mock(GenerationProvider.class); when(paid.name()).thenReturn("siliconflow");
+        ready(6); flow.properties.setProvider("seedance"); flow.properties.setReservationPerTask(new BigDecimal("6"));
+        var paid = mock(GenerationProvider.class); when(paid.name()).thenReturn("seedance");
         var generation = new GenerationService(flow.repository, flow.properties, List.of(paid), flow.json, flow.artifacts, flow.assets);
         var paidService = new ShotGenerationService(flow.jdbc, storyboard.repository, generation, flow.properties, flow.json);
         // Even with a project allowance, global model authorization remains mandatory.
@@ -175,10 +175,10 @@ class ShotGenerationFlowTest {
     }
     @Test void paidBudgetIsConservativeAndAuthorizationChangesAreBlockedBeforeAnyProviderCall() throws Exception {
         ready(3);
-        flow.properties.setProvider("siliconflow"); flow.properties.setPaidEnabled(true);
+        flow.properties.setProvider("seedance"); flow.properties.setPaidEnabled(true);
         flow.properties.setAuthorizationId("db-only-test"); flow.properties.setApprovedModels(List.of(flow.properties.getTextModel()));
         flow.properties.setMaxPaidTasks(3); flow.properties.setBudgetLimit(new BigDecimal("30")); flow.properties.setReservationPerTask(new BigDecimal("6"));
-        var paid = mock(GenerationProvider.class); when(paid.name()).thenReturn("siliconflow");
+        var paid = mock(GenerationProvider.class); when(paid.name()).thenReturn("seedance");
         var generation = new GenerationService(flow.repository, flow.properties, List.of(paid), flow.json, flow.artifacts, flow.assets);
         var paidService = new ShotGenerationService(flow.jdbc, storyboard.repository, generation, flow.properties, flow.json);
         paidService.configure(1, project.id(), new ShotGenerationService.BudgetInput(3, new BigDecimal("10")));

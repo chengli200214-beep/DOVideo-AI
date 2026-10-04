@@ -37,7 +37,7 @@ class AigcProviderWiringTest {
                 ).run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context.getBeansOfType(GenerationProvider.class).values()).extracting(GenerationProvider::name)
-                        .containsExactlyInAnyOrder("mock", "siliconflow", "seedance");
+                        .containsExactlyInAnyOrder("mock", "seedance");
                     var service = context.getBean(GenerationService.class);
                     assertThat(service.capabilities()).hasSize(2).allMatch(cap -> cap.available() && cap.provider().equals("seedance"));
                     context.getBean(GenerationProperties.class).setPaidEnabled(false);
