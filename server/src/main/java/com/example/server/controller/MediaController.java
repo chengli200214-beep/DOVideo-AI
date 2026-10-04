@@ -7,8 +7,11 @@ import com.example.server.service.AuthService;
 import com.example.server.service.ChunkUploadService;
 import com.example.server.service.MediaIngestService;
 import com.example.server.service.MediaService;
+import com.example.server.service.UrlIngestService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,13 +29,16 @@ public class MediaController {
     private final ChunkUploadService chunkUploadService;
     private final MediaIngestService mediaIngestService;
     private final MediaService mediaService;
+    private final UrlIngestService urlIngestService;
 
     public MediaController(ChunkUploadService chunkUploadService,
                            MediaIngestService mediaIngestService,
-                           MediaService mediaService) {
+                           MediaService mediaService,
+                           UrlIngestService urlIngestService) {
         this.chunkUploadService = chunkUploadService;
         this.mediaIngestService = mediaIngestService;
         this.mediaService = mediaService;
+        this.urlIngestService = urlIngestService;
     }
 
     // 说明：下列方法上的 throws 源于 service 层声明了受检异常（throws Exception/IOException）。
@@ -76,9 +82,17 @@ public class MediaController {
     }
 
     @PostMapping("/upload-url")
-    public Result<MediaSummary> uploadUrl(@RequestParam("url") String url,
-                                          @RequestAttribute(AuthService.REQUEST_USER_ID) Long userId) throws Exception {
-        return Result.ok(MediaSummary.from(mediaIngestService.ingestUrl(url, userId)));
+    public ResponseEntity<Result<UrlIngestService.JobView>> uploadUrl(
+            @RequestParam("url") String url,
+            @RequestAttribute(AuthService.REQUEST_USER_ID) Long userId) {
+        return ResponseEntity.accepted().body(Result.ok(urlIngestService.submit(url, userId)));
+    }
+
+    @GetMapping("/upload-url/{jobId}")
+    public Result<UrlIngestService.JobView> uploadUrlStatus(
+            @PathVariable String jobId,
+            @RequestAttribute(AuthService.REQUEST_USER_ID) Long userId) {
+        return Result.ok(urlIngestService.status(jobId, userId));
     }
 
     @GetMapping("/list")

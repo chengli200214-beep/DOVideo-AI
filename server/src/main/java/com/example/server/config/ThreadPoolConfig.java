@@ -32,6 +32,12 @@ public class ThreadPoolConfig {
         return executor("LLM-Thread-", 4, 8, 20);
     }
 
+    /** yt-dlp 单个任务最长 30 分钟，单独隔离，避免挤占 AI / ASR 线程。 */
+    @Bean("urlIngestExecutor")
+    public ThreadPoolTaskExecutor urlIngestExecutor() {
+        return executor("URL-Ingest-", 2, 2, 8);
+    }
+
     private ThreadPoolTaskExecutor executor(String prefix, int coreSize, int maxSize, int queueCapacity) {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(coreSize);
