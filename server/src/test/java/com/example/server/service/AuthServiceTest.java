@@ -64,11 +64,29 @@ class AuthServiceTest {
         var auth=new AuthService(countingRedis(counters),mapper,3);
         var account=new User(); account.setId(1L); account.setUsername("realuser"); account.setPassword(auth.hashPassword("correct-test-password")); account.setRole("USER");
         when(mapper.selectOne(any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(null);
-        for(int i=0;i<3;i++) assertEquals(401,auth.login(new AuthRequest("victim"+i,"Password123",null),"203.0.113.9").code());
+        for(int i=0;i<2;i++) assertEquals(401,auth.login(new AuthRequest("victim"+i,"Password123",null),"203.0.113.9").code());
+        when(mapper.selectOne(any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(account);
+        assertEquals(200,auth.login(new AuthRequest("realuser","correct-test-password",null),"203.0.113.9").code());
+        assertEquals("2",counters.get("auth:login-failures:ip:203.0.113.9"));
+        when(mapper.selectOne(any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(null);
+        assertEquals(401,auth.login(new AuthRequest("victim9","Password123",null),"203.0.113.9").code());
         when(mapper.selectOne(any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(account);
         assertEquals(429,auth.login(new AuthRequest("realuser","correct-test-password",null),"203.0.113.9").code());
         assertEquals(200,auth.login(new AuthRequest("realuser","correct-test-password",null),"198.51.100.1").code());
-        assertEquals("3",counters.get("auth:login-failures:ip:203.0.113.9"));
+    }
+
+    @Test void addressAtLimitIsRejectedBeforeAnyLookupOrHashing() {
+        var counters=new HashMap<String,String>(Map.of("auth:login-failures:ip:203.0.113.9","3"));
+        var mapper=mock(UserMapper.class);
+        var auth=spy(new AuthService(countingRedis(counters),mapper,3));
+        assertEquals(429,auth.login(new AuthRequest("realuser","Password123",null),"203.0.113.9").code());
+        verify(mapper,never()).selectOne(any());
+        verify(auth,never()).passwordMatches(anyString(),anyString());
+    }
+
+    @Test void nonPositiveIpLimitIsRejected() {
+        var redis=mock(StringRedisTemplate.class); var mapper=mock(UserMapper.class);
+        assertThrows(IllegalArgumentException.class,()->new AuthService(redis,mapper,0));
     }
 
     @Test void unknownUsernameStillPaysThePasswordHashingCost() {

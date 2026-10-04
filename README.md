@@ -219,6 +219,8 @@ cp .env.example .env
 
 脚本会检查本机命令与版本、校验 Compose 配置，并等待 MySQL、Redis、MinIO、Qdrant 和 RocketMQ 启动。中间件与后端默认只监听 `127.0.0.1`，不会直接暴露到局域网；远程部署时再显式修改 `SERVER_ADDRESS` 并配置反向代理。
 
+部署在 Nginx 等可信反向代理之后时，请设置 `SERVER_FORWARD_HEADERS_STRATEGY=native`，并确保代理会设置 `X-Forwarded-For`；否则所有用户共用代理 IP，10 分钟内累计 30 次登录失败就会让所有人被限流（可用 `AUTH_MAX_LOGIN_FAILURES_PER_IP` 调整阈值）。
+
 ### 3. 启动后端
 
 ```bash

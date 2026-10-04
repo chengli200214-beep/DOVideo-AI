@@ -38,8 +38,9 @@ public class AuthService {
     private static final long SESSION_HOURS = 24;
     private static final String SESSION_PREFIX = "auth:session:";
     private static final String LOGIN_FAILURE_PREFIX = "auth:login-failures:";
-    private static final int MAX_LOGIN_FAILURES = 8;
     private static final String LOGIN_IP_FAILURE_PREFIX = "auth:login-failures:ip:";
+    private static final int DEFAULT_MAX_LOGIN_FAILURES_PER_IP = 30;
+    private static final int MAX_LOGIN_FAILURES = 8;
     private static final long LOGIN_FAILURE_WINDOW_MINUTES = 10;
     private static final DefaultRedisScript<Long> RECORD_FAILURE = new DefaultRedisScript<>("""
             local count = redis.call('INCR', KEYS[1])
@@ -59,13 +60,16 @@ public class AuthService {
     private final String timingDummyHash;
 
     public AuthService(StringRedisTemplate redisTemplate, UserMapper userMapper) {
-        this(redisTemplate, userMapper, 30);
+        this(redisTemplate, userMapper, DEFAULT_MAX_LOGIN_FAILURES_PER_IP);
     }
 
     @Autowired
     public AuthService(StringRedisTemplate redisTemplate,
                        UserMapper userMapper,
                        @Value("${auth.login.max-failures-per-ip:30}") int maxLoginFailuresPerIp) {
+        if (maxLoginFailuresPerIp < 1) {
+            throw new IllegalArgumentException("auth.login.max-failures-per-ip 必须至少为 1");
+        }
         this.redisTemplate = redisTemplate;
         this.userMapper = userMapper;
         this.maxLoginFailuresPerIp = maxLoginFailuresPerIp;
@@ -164,11 +168,16 @@ public class AuthService {
     public boolean passwordMatches(String rawPassword, String storedPassword) {
         if (rawPassword == null || storedPassword == null) return false;
         if (!isHashed(storedPassword)) {
+            // 旧明文密码也跑一次 PBKDF2，使其耗时与哈希密码一致；结果不参与判断。
+            hashedPasswordMatches(rawPassword, timingDummyHash);
             return MessageDigest.isEqual(
                     rawPassword.getBytes(StandardCharsets.UTF_8),
                     storedPassword.getBytes(StandardCharsets.UTF_8));
         }
+        return hashedPasswordMatches(rawPassword, storedPassword);
+    }
 
+    private boolean hashedPasswordMatches(String rawPassword, String storedPassword) {
         try {
             String[] parts = storedPassword.split("\\$", -1);
             int iterations = Integer.parseInt(parts[1]);
