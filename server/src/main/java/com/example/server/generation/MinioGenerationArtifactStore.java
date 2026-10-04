@@ -1,6 +1,7 @@
 package com.example.server.generation;
 
 import com.example.server.utils.MinioUtils;
+import com.example.server.utils.PublicNetworkAddresses;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import okhttp3.*;
@@ -44,12 +45,8 @@ public class MinioGenerationArtifactStore implements GenerationArtifactStore {
         this.download = bounded.newBuilder().retryOnConnectionFailure(false).followRedirects(false).followSslRedirects(false)
                 .dns(host -> {
                     var addresses = Arrays.asList(InetAddress.getAllByName(host));
-                    for (InetAddress address : addresses) {
-                        if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isLinkLocalAddress()
-                                || address.isSiteLocalAddress() || address.isMulticastAddress()
-                                || (address.getAddress().length == 16 && (address.getAddress()[0] & 0xfe) == 0xfc)) {
-                            throw new java.net.UnknownHostException("Non-public artifact address");
-                        }
+                    if (addresses.stream().anyMatch(PublicNetworkAddresses::isDisallowed)) {
+                        throw new java.net.UnknownHostException("Non-public artifact address");
                     }
                     return addresses;
                 }).build();
