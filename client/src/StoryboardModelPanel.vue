@@ -20,16 +20,17 @@
   </section>
 </template>
 <script setup>
-import { toRef } from 'vue'
+import { toRef, watch } from 'vue'
 import { apiRequest, captureAuthSession } from './api'
 import { browserStorage } from './generationWorkspace'
 import { storyboardApi } from './storyboardWorkspace'
 import { planningStates, useStoryboardModelWorkspace } from './storyboardModelWorkspace'
 const props = defineProps({ user: Object, project: Object, dirty: Boolean })
-defineEmits(['load'])
+const emit = defineEmits(['load', 'activity'])
 const { runtime, tasks, agreed, busy, loading, error, notice, ready, hasActive, refresh, generate } = useStoryboardModelWorkspace({
   user: toRef(props, 'user'), project: toRef(props, 'project'), dirty: toRef(props, 'dirty'), request: storyboardApi(apiRequest), captureSession: captureAuthSession, storage: browserStorage('sessionStorage')
 })
+watch(() => hasActive.value || loading.value || busy.value, value => emit('activity', value), { immediate: true })
 </script>
 <style scoped>
 .model-panel { padding:18px; margin-bottom:18px; border:1px solid #424653; border-radius:12px; background:#20232a; }

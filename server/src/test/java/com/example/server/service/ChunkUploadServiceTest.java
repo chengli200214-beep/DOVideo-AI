@@ -34,6 +34,7 @@ class ChunkUploadServiceTest {
     private final MediaService mediaService = mock(MediaService.class);
     private final RedissonClient redisson = mock(RedissonClient.class);
     private final Map<String, String> receipts = new HashMap<>();
+    private final Map<String, MediaFile> durable = new HashMap<>();
     private final MediaFile media = new MediaFile();
     private ChunkUploadService service;
 
@@ -70,7 +71,10 @@ class ChunkUploadServiceTest {
                 .thenReturn("http://localhost:9000/media/sample.mp4");
         media.setId(42L);
         media.setUserId(7L);
-        when(mediaService.saveUploadedMedia(anyString(), anyString(), eq(7L), anyString())).thenReturn(media);
+        when(mediaService.saveUploadedMediaOnce(anyString(), anyString(), eq(7L), anyString(), anyString())).thenAnswer(call -> {
+            durable.put(call.getArgument(4), media); return media;
+        });
+        when(mediaService.completedIngest(anyString(), eq(7L))).thenAnswer(call -> durable.get(call.getArgument(0)));
         when(mediaService.requireOwnedMedia(42L, 7L)).thenReturn(media);
         service = new ChunkUploadService(redis, redisson, minio, mediaService);
     }
@@ -81,7 +85,7 @@ class ChunkUploadServiceTest {
         assertEquals(Set.of(0, 1), service.uploadedChunks(UPLOAD_ID, 7L));
         assertSame(media, service.complete(UPLOAD_ID, 7L));
 
-        verify(mediaService, times(1)).saveUploadedMedia(anyString(), anyString(), eq(7L), anyString());
+        verify(mediaService, times(1)).saveUploadedMediaOnce(anyString(), anyString(), eq(7L), anyString(), anyString());
         verify(redis).expire(KEY, 1, TimeUnit.DAYS);
         verify(redis).expire(KEY + ":parts", 1, TimeUnit.DAYS);
         verify(minio).removeObject("chunk-uploads/" + UPLOAD_ID + "/part-0");
@@ -105,6 +109,17 @@ class ChunkUploadServiceTest {
         assertSame(media, service.complete(UPLOAD_ID, 7L));
         assertEquals(Set.of(0, 1), service.uploadedChunks(UPLOAD_ID, 7L));
         assertSame(media, service.complete(UPLOAD_ID, 7L));
-        verify(mediaService, times(1)).saveUploadedMedia(anyString(), anyString(), eq(7L), anyString());
+        verify(mediaService, times(1)).saveUploadedMediaOnce(anyString(), anyString(), eq(7L), anyString(), anyString());
+    }
+
+    @Test
+    void failedRedisReceiptAndRestartReuseCommittedMediaWithoutReadingRedisOrUploadingAgain() throws Exception {
+        doThrow(new IllegalStateException("Redis receipt unavailable")).when(values).set(anyString(), anyString(), anyLong(), any(TimeUnit.class));
+        assertSame(media, service.complete(UPLOAD_ID, 7L));
+        when(values.get(anyString())).thenThrow(new IllegalStateException("Redis unavailable"));
+        var restarted = new ChunkUploadService(redis, redisson, minio, mediaService);
+        assertSame(media, restarted.complete(UPLOAD_ID, 7L));
+        verify(mediaService, times(1)).saveUploadedMediaOnce(anyString(), anyString(), eq(7L), anyString(), eq("chunk:" + UPLOAD_ID));
+        verify(minio, times(1)).uploadLocalFile(any(File.class), eq("sample.mp4"));
     }
 }

@@ -509,7 +509,8 @@
 
 <script setup>
 import { computed, nextTick, ref, watch, onMounted, onUnmounted } from 'vue'
-import { apiRequest, captureAuthSession, clearAuthToken, hasAuthToken, setAuthToken } from './api'
+import { apiRequest, bindAuthSession, captureAuthSession, clearAuthToken, hasAuthToken, setAuthToken } from './api'
+import { listenForAccountChanges } from './authAccountSync'
 import {
   forgetUploadProgress,
   formatBytes,
@@ -1287,6 +1288,7 @@ const handleAuth = async () => {
       setAuthToken(data.token)
       currentUser.value = data.userInfo
       localStorage.setItem('user', JSON.stringify(data.userInfo))
+      bindAuthSession()
       closeAuthModal()
       showMsg(`欢迎回来，${data.userInfo.nickname}`)
       fetchList({ notify: true })
@@ -1305,7 +1307,7 @@ const handleAuth = async () => {
   }
 }
 /** 退出与登录失效走同一套清理，避免两处漏掉不同的字段。 */
-const resetSessionState = () => {
+const resetSessionState = ({ clearStoredUser = true } = {}) => {
   uploadRequestVersion += 1
   listRequestVersion += 1
   authRequestVersion += 1
@@ -1325,7 +1327,8 @@ const resetSessionState = () => {
   resumableFile.value = null
   resumableChunks.value = { done: 0, total: 0 }
   uploading.value = false
-  localStorage.removeItem('user')
+  if (clearStoredUser) localStorage.removeItem('user')
+  bindAuthSession()
 }
 
 const logout = () => {
@@ -1341,6 +1344,17 @@ const handleAuthExpired = () => {
   resetSessionState()
   showMsg('登录状态已失效，请重新登录', true)
   openAuthModal()
+}
+
+let stopAccountSync
+const handleSyncedAccount = user => {
+  resetSessionState({ clearStoredUser: false })
+  bindAuthSession()
+  if (user?.id) {
+    currentUser.value = user
+    fetchList({ notify: true })
+  }
+  showMsg(user?.id ? `登录账号已同步为 ${user.nickname || user.username}` : '登录状态已在其他页面变化，请重新登录')
 }
 
 const handleOnline = () => {
@@ -1403,12 +1417,14 @@ onMounted(() => {
     showDemoResult()
     return
   }
+  stopAccountSync = listenForAccountChanges({ target: window, storage: localStorage, onChange: handleSyncedAccount })
   const savedUser = localStorage.getItem('user')
   if (savedUser && hasAuthToken()) {
     try {
       currentUser.value = JSON.parse(savedUser)
     } catch(e) {}
   }
+  bindAuthSession()
   fetchList({ notify: Boolean(currentUser.value) })
 })
 onUnmounted(() => {
@@ -1417,6 +1433,7 @@ onUnmounted(() => {
   authRequestVersion += 1
   resetWorkspace()
   window.removeEventListener('auth-expired', handleAuthExpired)
+  stopAccountSync?.()
   window.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('online', handleOnline)
   window.removeEventListener('offline', handleOffline)

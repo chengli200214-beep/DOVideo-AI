@@ -51,6 +51,14 @@ Register-StartupTestEvent 'ensure'
             'GENERATION_AUTHORIZATION_ID=fixture-must-not-import', 'GENERATION_APPROVED_MODELS=fixture-must-not-import',
             'STORYBOARD_PAID_ENABLED=true', 'STORYBOARD_API_KEY=fixture-must-not-import') |
             Set-Content -LiteralPath (Join-Path $fixture '.local/seedance-video.env') -Encoding utf8
+        if ($Options.MissingArtifactHosts) {
+            (Get-Content -LiteralPath (Join-Path $fixture '.local/seedance-video.env')) -replace '^SEEDANCE_ARTIFACT_HOSTS=.*$', 'SEEDANCE_ARTIFACT_HOSTS=' |
+                Set-Content -LiteralPath (Join-Path $fixture '.local/seedance-video.env') -Encoding utf8
+        }
+        if ($Options.InvalidArtifactHosts) {
+            (Get-Content -LiteralPath (Join-Path $fixture '.local/seedance-video.env')) -replace '^SEEDANCE_ARTIFACT_HOSTS=.*$', 'SEEDANCE_ARTIFACT_HOSTS=*.fixture.invalid' |
+                Set-Content -LiteralPath (Join-Path $fixture '.local/seedance-video.env') -Encoding utf8
+        }
     }
     $inheritedEnvironment = @{}
     foreach ($name in $taskEnvNames) {
@@ -127,6 +135,7 @@ Register-StartupTestEvent 'ensure'
     else { Assert-StartupTest (-not $caught) "$ScenarioName failed: $caught" }
     foreach ($name in $taskEnvNames) { Assert-StartupTest ([Environment]::GetEnvironmentVariable($name, 'Process') -eq $inheritedEnvironment[$name]) "$ScenarioName did not restore $name" }
     if ($Options.BeforeDocker) { Assert-StartupTest ($caseState.Events.Count -eq 0) "$ScenarioName reached Docker before its preflight guard" }
+    if ($Options.BeforeCompose) { Assert-StartupTest (-not $caseState.Events.Contains('compose') -and -not $caseState.Events.Contains('build')) "$ScenarioName continued past its configuration guard" }
     if ($Options.ComposeFails) { Assert-StartupTest (-not $caseState.Events.Contains('minio') -and -not $caseState.Events.Contains('build')) 'Compose failure continued to readiness or build' }
     if ($Options.ExistingVolumes) { Assert-StartupTest (-not (Test-Path -LiteralPath $secrets)) 'Existing volume credentials were replaced'; Assert-StartupTest (-not $caseState.Events.Contains('compose')) 'Missing credentials changed running containers' }
     if ($Options.MinioFails -or $Options.JavaExits -or $Options.ForeignPort) { Assert-StartupTest (-not $caseState.Events.Contains('app') -and -not $caseState.Events.Contains('build')) "$ScenarioName was falsely reported as a healthy app" }
@@ -143,6 +152,8 @@ try {
         @{ Name='legacy-recovery-invalid-flag-rejected-first'; Options=@{LegacyRecovery='false';BeforeDocker=$true}; Error='legacy recovery mode.*stop-aigc' },
         @{ Name='retired-recovery-parameter-rejected'; Options=@{LegacyParameter=$true;BeforeDocker=$true}; Error='RecoverVideoTasks' },
         @{ Name='seedance-reuse-keeps-paid-disabled'; Options=@{Seedance=$true}; Error='' },
+        @{ Name='seedance-missing-artifact-hosts'; Options=@{Seedance=$true;MissingArtifactHosts=$true;BeforeCompose=$true}; Error='exact artifact download' },
+        @{ Name='seedance-invalid-artifact-hosts'; Options=@{Seedance=$true;InvalidArtifactHosts=$true;BeforeCompose=$true}; Error='exact DNS names' },
         @{ Name='paid-mode-rejected-first'; Options=@{Paid=$true;BeforeDocker=$true}; Error='mode differs' },
         @{ Name='provider-mode-rejected-first'; Options=@{ModeMismatch=$true;BeforeDocker=$true}; Error='mode differs' },
         @{ Name='port-mismatch-rejected-first'; Options=@{PortMismatch=$true;BeforeDocker=$true}; Error='mode differs' },

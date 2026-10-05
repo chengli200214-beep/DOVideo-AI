@@ -6,6 +6,8 @@ import com.example.server.exception.BusinessException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.h2.jdbcx.JdbcDataSource;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -37,6 +39,8 @@ class UrlIngestServiceTest {
     };
     private MediaIngestService ingest;
     private MediaService media;
+    private UrlIngestJobRepository jobs;
+    private JdbcTemplate jdbc;
 
     @BeforeEach
     @SuppressWarnings("unchecked")
@@ -49,10 +53,15 @@ class UrlIngestServiceTest {
                 .when(values).set(anyString(), anyString(), any(Duration.class));
         ingest = mock(MediaIngestService.class);
         media = mock(MediaService.class);
+        var data = new JdbcDataSource();
+        data.setURL("jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=MySQL;DB_CLOSE_DELAY=-1");
+        jdbc = new JdbcTemplate(data);
+        jdbc.execute("CREATE TABLE media_url_ingest_jobs(id VARCHAR(36) PRIMARY KEY,user_id BIGINT,status VARCHAR(32),media_id BIGINT,error VARCHAR(1000),created_at BIGINT,updated_at BIGINT)");
+        jobs = spy(new UrlIngestJobRepository(jdbc));
     }
 
     private UrlIngestService service(Executor executor) {
-        return new UrlIngestService(ingest, media, redis, new ObjectMapper(), executor, clock);
+        return new UrlIngestService(ingest, media, redis, new ObjectMapper(), jobs, executor, clock);
     }
 
     private static MediaFile file(long id) {
@@ -67,7 +76,7 @@ class UrlIngestServiceTest {
     @Test
     void submitReturnsBeforeDownloadingAndCompletesInBackground() throws Exception {
         var service = service(pending::add);
-        when(ingest.ingestUrl(URL, 1L)).thenReturn(file(7L));
+        when(ingest.ingestUrl(eq(URL), eq(1L), anyString())).thenReturn(file(7L));
         when(media.requireOwnedMedia(7L, 1L)).thenReturn(file(7L));
 
         var queued = service.submit(URL, 1L);
@@ -82,7 +91,7 @@ class UrlIngestServiceTest {
 
     private String failureMessageFor(Exception failure) throws Exception {
         var service = service(pending::add);
-        when(ingest.ingestUrl(URL, 1L)).thenThrow(failure);
+        when(ingest.ingestUrl(eq(URL), eq(1L), anyString())).thenThrow(failure);
         var queued = service.submit(URL, 1L);
         pending.removeFirst().run();
         var failed = service.status(queued.id(), 1L);
@@ -138,7 +147,7 @@ class UrlIngestServiceTest {
     @Test
     void limitsActiveJobsPerUserAndFreesTheSlotWhenOneFinishes() throws Exception {
         var service = service(pending::add);
-        when(ingest.ingestUrl(URL, 1L)).thenReturn(file(7L));
+        when(ingest.ingestUrl(eq(URL), eq(1L), anyString())).thenReturn(file(7L));
         service.submit(URL, 1L);
         service.submit(URL, 1L);
         var error = assertThrows(BusinessException.class, () -> service.submit(URL, 1L));
@@ -164,8 +173,7 @@ class UrlIngestServiceTest {
         var service = service(pending::add);
         var queued = service.submit(URL, 1L);
         // simulate a worker that died after marking RUNNING
-        var job = store.get(store.keySet().iterator().next());
-        store.put(store.keySet().iterator().next(), job.replace("\"QUEUED\"", "\"RUNNING\""));
+        jdbc.update("UPDATE media_url_ingest_jobs SET status='RUNNING' WHERE id=?", queued.id());
         now.addAndGet(Duration.ofMinutes(55).toMillis());
         assertEquals(RUNNING, service.status(queued.id(), 1L).status());
         now.addAndGet(Duration.ofMinutes(6).toMillis());
@@ -187,7 +195,7 @@ class UrlIngestServiceTest {
     @Test
     void completedJobWhoseMediaWasDeletedHasNoMedia() throws Exception {
         var service = service(pending::add);
-        when(ingest.ingestUrl(URL, 1L)).thenReturn(file(7L));
+        when(ingest.ingestUrl(eq(URL), eq(1L), anyString())).thenReturn(file(7L));
         when(media.requireOwnedMedia(7L, 1L)).thenThrow(new NoSuchElementException("文件不存在"));
         var queued = service.submit(URL, 1L);
         pending.removeFirst().run();
@@ -211,13 +219,52 @@ class UrlIngestServiceTest {
     }
 
     @Test
-    void redisFailureDuringSubmitReleasesTheSlot() {
+    void redisOutageDoesNotLoseSubmissionOrSuccessfulCompletion() throws Exception {
         var service = service(pending::add);
         doThrow(new IllegalStateException("redis down"))
-                .doAnswer(call -> store.put(call.getArgument(0), call.getArgument(1)))
                 .when(values).set(anyString(), anyString(), any(Duration.class));
-        assertThrows(IllegalStateException.class, () -> service.submit(URL, 1L));
-        assertDoesNotThrow(() -> service.submit(URL, 1L));
-        assertDoesNotThrow(() -> service.submit(URL, 1L));
+        when(ingest.ingestUrl(eq(URL), eq(1L), anyString())).thenReturn(file(7L));
+        when(media.requireOwnedMedia(7L, 1L)).thenReturn(file(7L));
+        var queued = service.submit(URL, 1L);
+        pending.removeFirst().run();
+        var restarted = new UrlIngestService(ingest, media, redis, new ObjectMapper(), new UrlIngestJobRepository(jdbc), pending::add, clock);
+        assertEquals(COMPLETED, restarted.status(queued.id(), 1L).status());
+        assertEquals(7L, restarted.status(queued.id(), 1L).media().id());
+        verify(values, never()).get(anyString());
+    }
+
+    @Test
+    void committedMediaRepairsLostCompletionStateAfterRestartWithoutDownloadingAgain() throws Exception {
+        var service = service(pending::add);
+        var queued = service.submit(URL, 1L);
+        var key = "url:" + queued.id();
+        when(ingest.ingestUrl(URL, 1L, key)).thenAnswer(call -> {
+            when(media.completedIngest(key, 1L)).thenReturn(file(7L));
+            return file(7L);
+        });
+        when(media.requireOwnedMedia(7L, 1L)).thenReturn(file(7L));
+        doThrow(new IllegalStateException("completion write unavailable")).when(jobs).update(argThat(job -> job.status() == COMPLETED));
+        pending.removeFirst().run();
+        assertEquals(RUNNING, jobs.find(queued.id()).status());
+        var restarted = new UrlIngestService(ingest, media, redis, new ObjectMapper(), new UrlIngestJobRepository(jdbc), pending::add, clock);
+        assertEquals(COMPLETED, restarted.status(queued.id(), 1L).status());
+        assertEquals(COMPLETED, jobs.find(queued.id()).status());
+        verify(ingest, times(1)).ingestUrl(URL, 1L, key);
+    }
+
+    @Test
+    void legacyCompletedJobsRetainTheirExistingRedisTtlWhileNewJobsHaveTheDatabaseQueryWindow() throws Exception {
+        var service = service(pending::add);
+        String legacyId = UUID.randomUUID().toString();
+        var legacy = new UrlIngestService.Job(legacyId, 1L, COMPLETED, 7L, null,
+                now.get() - Duration.ofHours(25).toMillis(), now.get());
+        store.put("media:url-ingest:" + legacyId, new ObjectMapper().writeValueAsString(legacy));
+        when(media.requireOwnedMedia(7L, 1L)).thenReturn(file(7L));
+        assertEquals(7L, service.status(legacyId, 1L).media().id());
+        assertEquals(ErrorCode.NOT_FOUND, assertThrows(BusinessException.class, () -> service.status(legacyId, 2L)).errorCode());
+        var queued = service.submit(URL, 1L);
+        now.addAndGet(Duration.ofHours(25).toMillis());
+        assertEquals(ErrorCode.NOT_FOUND, assertThrows(BusinessException.class, () -> service.status(queued.id(), 1L)).errorCode());
+        verifyNoInteractions(ingest);
     }
 }

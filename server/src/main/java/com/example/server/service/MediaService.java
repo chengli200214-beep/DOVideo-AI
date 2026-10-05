@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
@@ -86,6 +87,16 @@ public class MediaService {
     }
 
     public MediaFile saveUploadedMedia(String filename, String fileUrl, Long userId, String md5) {
+        return saveUploadedMediaOnce(filename, fileUrl, userId, md5, null);
+    }
+
+    public MediaFile completedIngest(String key, Long userId) {
+        MediaFile media = mediaFileMapper.selectOne(new QueryWrapper<MediaFile>().eq("ingest_key", key));
+        if (media != null && !Objects.equals(media.getUserId(), userId)) throw new SecurityException("上传任务不属于当前用户");
+        return media;
+    }
+
+    public MediaFile saveUploadedMediaOnce(String filename, String fileUrl, Long userId, String md5, String key) {
         MediaFile mediaFile = new MediaFile();
         mediaFile.setFilename(normalizeVideoFilename(filename));
         mediaFile.setFilePath(fileUrl);
@@ -93,12 +104,30 @@ public class MediaService {
         mediaFile.setUploadTime(LocalDateTime.now());
         mediaFile.setUserId(userId);
         mediaFile.setContentHash(md5);
+        mediaFile.setIngestKey(key);
         try {
             mediaFileMapper.insert(mediaFile);
             rememberContentHash(mediaFile.getId(), md5);
             invalidateUserList(userId);
             return mediaFile;
         } catch (RuntimeException e) {
+            if (key != null) {
+                // A failed response can follow a committed INSERT. Resolve the unique DB
+                // identity before compensation; never delete a possibly committed object.
+                MediaFile existing;
+                try { existing = completedIngest(key, userId); }
+                catch (RuntimeException unavailable) { e.addSuppressed(unavailable); throw e; }
+                if (existing != null) {
+                    if (!Objects.equals(existing.getFilePath(), fileUrl)) removeUploadedObject(fileUrl, e);
+                    rememberContentHash(existing.getId(), existing.getContentHash());
+                    invalidateUserList(userId);
+                    return existing;
+                }
+                if (!(e instanceof DuplicateKeyException)) {
+                    // Outcome not established: retain bytes for operator reconciliation.
+                    throw e;
+                }
+            }
             removeUploadedObject(fileUrl, e);
             throw e;
         }

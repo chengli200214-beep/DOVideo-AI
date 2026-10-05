@@ -19,6 +19,7 @@ public class MediaFile {
     private String status;
     private String filePath;
     private String contentHash;
+    private String ingestKey;
 
     private String aiSummary;
     private String transcriptText;

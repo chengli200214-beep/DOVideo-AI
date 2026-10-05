@@ -31,6 +31,7 @@ class AigcProviderWiringTest {
                     "spring.flyway.enabled=false", "minio.endpoint="+minio.url("/"),
                     "minio.accessKey=offline-test", "minio.secretKey=offline-secret", "minio.bucketName=aigc",
                     "generation.provider=seedance", "generation.paid-enabled=true", "generation.seedance.api-key=offline-ark-key",
+                    "generation.seedance.artifact-hosts=artifacts.example.com",
                     "generation.authorization-id=standalone-wiring-test", "generation.approved-models="+SeedanceGenerationProvider.MODEL,
                     "generation.max-paid-tasks=2147483647", "generation.budget-limit=999999999999", "generation.reservation-per-task=5",
                     "generation.text-model="+SeedanceGenerationProvider.MODEL, "generation.image-model="+SeedanceGenerationProvider.MODEL

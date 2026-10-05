@@ -27,7 +27,7 @@ public class StoryboardModelRepository {
     public List<Task> recent(long user,String project) { return jdbc.query("SELECT * FROM storyboard_model_tasks WHERE user_id=? AND project_id=? ORDER BY created_at DESC,id LIMIT 50",mapper,user,project); }
     public Task create(long user,String project,String key,int expected,String request,StoryboardModelProperties p,long now) {
         return tx.execute(transaction->{
-            var revisions=jdbc.queryForList("SELECT latest_revision,archived_at FROM creative_projects WHERE id=? AND user_id=? FOR UPDATE",project,user);
+            var revisions=jdbc.queryForList("SELECT latest_revision,confirmed_revision,archived_at FROM creative_projects WHERE id=? AND user_id=? FOR UPDATE",project,user);
             if (revisions.isEmpty()) throw new NoSuchElementException("创作项目不存在");
             Task prior=byKey(user,key);
             if (prior!=null) { requireSame(prior,project,expected); return prior; }
@@ -35,6 +35,8 @@ public class StoryboardModelRepository {
             if (((Number)revisions.getFirst().get("latest_revision")).intValue()!=expected) throw conflict("分镜版本已变化，请重新载入后生成");
             if (jdbc.queryForObject("SELECT COUNT(*) FROM storyboard_model_tasks WHERE project_id=? AND status IN ('QUEUED','SUBMITTING')",Integer.class,project)>0)
                 throw conflict("该项目已有分镜模型任务，请先查询结果");
+            if (jdbc.queryForObject("SELECT COUNT(*) FROM shot_generation_versions v JOIN generation_tasks t ON t.id=v.task_id WHERE v.project_id=? AND t.state NOT IN ('SUCCEEDED','FAILED')",Integer.class,project)>0)
+                throw conflict("镜头仍在生成或结果未知，请先查询原任务再重新生成分镜");
             p.requireEnabled();
             jdbc.update("INSERT IGNORE INTO storyboard_planning_authorizations(id,policy_hash) VALUES (?,?)",p.getAuthorizationId(),p.policyHash());
             int changed=jdbc.update("""
@@ -45,8 +47,8 @@ public class StoryboardModelRepository {
             String id=UUID.randomUUID().toString();
             jdbc.update("""
                 INSERT INTO storyboard_model_tasks(id,project_id,user_id,idempotency_key,expected_revision,authorization_id,policy_hash,
-                  model,currency,reserved_cost,request_json,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,'QUEUED',?)
-                """,id,project,user,key,expected,p.getAuthorizationId(),p.policyHash(),p.getModel(),p.getCurrency(),p.getReservationPerCall(),request,now);
+                  model,currency,reserved_cost,request_json,status,created_at,expected_confirmation_revision) VALUES (?,?,?,?,?,?,?,?,?,?,?,'QUEUED',?,?)
+                """,id,project,user,key,expected,p.getAuthorizationId(),p.policyHash(),p.getModel(),p.getCurrency(),p.getReservationPerCall(),request,now,revisions.getFirst().get("confirmed_revision"));
             return byKey(user,key);
         });
     }
@@ -68,8 +70,10 @@ public class StoryboardModelRepository {
         tx.executeWithoutResult(transaction->{
             var current=jdbc.query("SELECT * FROM storyboard_model_tasks WHERE id=? FOR UPDATE",mapper,task.id()).getFirst();
             if (!"SUBMITTING".equals(current.status()) || !Objects.equals(task.leaseToken(),current.leaseToken()) || current.leaseUntil()==null || current.leaseUntil()<now) return;
-            var projects=jdbc.queryForList("SELECT latest_revision FROM creative_projects WHERE id=? AND user_id=? FOR UPDATE",task.projectId(),task.userId());
-            boolean fresh=!projects.isEmpty() && ((Number)projects.getFirst().get("latest_revision")).intValue()==task.expectedRevision();
+            var projects=jdbc.queryForList("SELECT latest_revision,confirmed_revision,archived_at FROM creative_projects WHERE id=? AND user_id=? FOR UPDATE",task.projectId(),task.userId());
+            var confirmation=jdbc.queryForObject("SELECT expected_confirmation_revision FROM storyboard_model_tasks WHERE id=?",Integer.class,task.id());
+            boolean fresh=!projects.isEmpty() && ((Number)projects.getFirst().get("latest_revision")).intValue()==task.expectedRevision()
+                    && Objects.equals(confirmation,projects.getFirst().get("confirmed_revision")) && projects.getFirst().get("archived_at")==null;
             String status=!valid ? "FAILED" : fresh ? "SUCCEEDED" : "CONFLICT";
             String error=!valid ? output.errorCode()==null ? "VALIDATION_FAILED" : output.errorCode() : fresh ? null : "REVISION_CHANGED";
             Integer saved=valid && fresh ? task.expectedRevision()+1 : null;

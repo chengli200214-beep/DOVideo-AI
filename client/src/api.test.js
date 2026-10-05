@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test, { beforeEach } from 'node:test'
-import { apiRequest, setAuthToken } from './api.js'
+import { apiRequest, bindAuthSession, captureAuthSession, setAuthToken } from './api.js'
 
 beforeEach(() => {
   const storage = new Map()
@@ -10,6 +10,7 @@ beforeEach(() => {
     removeItem: key => storage.delete(key)
   }
   globalThis.window = new EventTarget()
+  bindAuthSession()
 })
 
 test('API network failures produce an actionable message', async () => {
@@ -52,4 +53,18 @@ test('SSE and binary responses are never consumed by JSON unwrapping', async () 
     assert.equal(await apiRequest('/analysis/events'), response)
     assert.equal(response.bodyUsed, false)
   }
+})
+
+test('a token changed by another tab cannot submit under the stale displayed account', async () => {
+  localStorage.setItem('user', JSON.stringify({ id: 1 })); setAuthToken('user-1');
+  const current = captureAuthSession();
+  localStorage.setItem('authToken', 'user-2'); localStorage.setItem('user', JSON.stringify({ id: 2 }));
+  let calls = 0, changes = 0;
+  fetch = async () => { calls++; return Response.json({ code: 0, message: 'ok', data: {} }) };
+  window.addEventListener('auth-changed', () => { changes++; bindAuthSession() });
+  assert.equal(current(), false);
+  await assert.rejects(apiRequest('/generation/projects', { method: 'POST' }), /登录账号已在其他页面变化/);
+  assert.equal(calls, 0); assert.equal(changes, 1);
+  await apiRequest('/generation/projects', { method: 'POST' });
+  assert.equal(calls, 1);
 })

@@ -20,6 +20,7 @@ class SeedanceGenerationProviderTest {
         var properties = new GenerationProperties();
         properties.setProvider("seedance"); properties.setPaidEnabled(true);
         properties.getSeedance().setApiKey("offline-ark-key");
+        properties.getSeedance().setArtifactHosts("artifacts.example.com");
         properties.setTextModel(SeedanceGenerationProvider.MODEL); properties.setImageModel(SeedanceGenerationProvider.MODEL);
         properties.setAuthorizationId("offline-seedance"); properties.setApprovedModels(List.of(SeedanceGenerationProvider.MODEL));
         properties.setMaxPaidTasks(2); properties.setBudgetLimit(new BigDecimal("10")); properties.setReservationPerTask(new BigDecimal("5"));
@@ -153,5 +154,21 @@ class SeedanceGenerationProviderTest {
         assertEquals("",properties.artifactHostsFor("siliconflow"));
         assertEquals("",properties.artifactHostsFor("unknown-provider"));
         assertEquals("ark.example.com",properties.artifactHostsFor("seedance"));
+    }
+    @Test void missingOrMalformedArtifactHostsBlockRequestsAndExposeUnavailableCapabilitiesBeforeReservation() throws Exception {
+        for (String hosts : List.of("", " ", "*.example.com", "https://artifacts.example.com", "artifacts.example.com:443", "127.0.0.1", "artifacts.example.com,", "bad..example.com")) {
+            var flow = new GenerationFlowTest(); flow.setup();
+            var properties = config(); properties.getSeedance().setArtifactHosts(hosts);
+            int[] calls = {0};
+            var provider = new SeedanceGenerationProvider(properties, json, new OkHttpClient.Builder().addInterceptor(chain -> {
+                calls[0]++; return response(chain.request(), 200, "{\"id\":\"fixture\"}");
+            }));
+            var service = new GenerationService(flow.repository, properties, List.of(provider), json, flow.artifacts, flow.assets);
+            assertTrue(service.capabilities().stream().noneMatch(item -> item.available()));
+            assertThrows(BusinessException.class, () -> service.submit(1, "missing-hosts", flow.text));
+            assertEquals(0, calls[0]);
+            assertEquals(0, flow.jdbc.queryForObject("SELECT COUNT(*) FROM generation_reservations", Integer.class));
+            assertEquals(0, flow.jdbc.queryForObject("SELECT COUNT(*) FROM generation_tasks", Integer.class));
+        }
     }
 }

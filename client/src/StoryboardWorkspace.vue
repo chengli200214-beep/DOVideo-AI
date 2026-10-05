@@ -41,7 +41,7 @@
         <fieldset class="editor" :disabled="libraryBusy">
           <div v-if="project?.archived" class="notice"><p>此项目已归档，分镜与成片仍可查看。项目库中的「恢复项目」保留当前草稿，可恢复后继续编辑。</p>
             <button v-if="dirty || draftConflict" class="secondary" :disabled="busy || loading" @click="discardChanges">放弃本机草稿，查看已保存分镜</button></div>
-          <StoryboardModelPanel v-if="project" :user="user" :project="project" :dirty="dirty || busy || loading || !!draftConflict || project.archived" @load="loadLatest" />
+          <StoryboardModelPanel v-if="project" :user="user" :project="project" :dirty="dirty || busy || loading || !!draftConflict || project.archived" @load="loadLatest" @activity="planningActive = $event" />
           <div v-if="!project" class="empty">填写创作需求后，会生成可编辑的脚本和镜头草稿。</div>
           <fieldset v-else class="editor-body" :disabled="busy || loading || project.archived">
             <div class="heading"><div><h2>{{ project.brief.title }}</h2><p class="help">{{ projectStates[project.status] }} · 当前版本 {{ project.revision.number }} · {{ dirty ? '有未保存修改' : '已保存' }}</p></div>
@@ -68,7 +68,8 @@
             </article>
             <button class="secondary" :disabled="busy || draft.shots.length >= 8" @click="addShot">添加镜头</button>
             <div class="save-actions"><button :disabled="busy || !dirty || !!draftConflict || totalDuration !== project.brief.desiredDurationSeconds" @click="save">保存编辑稿</button>
-              <button :disabled="busy || dirty || !!draftConflict || project.status === 'CONFIRMED' || !draft.shots.length" @click="confirm">确认当前分镜</button></div>
+              <button :disabled="planningActive || busy || dirty || !!draftConflict || project.status === 'CONFIRMED' || !draft.shots.length" @click="confirm">确认当前分镜</button></div>
+            <p v-if="planningActive" class="help">分镜规划进行中，请等待结果后再确认或提交镜头。</p>
             <p class="help">编辑后需保存并重新确认。确认记录用于后续生成，当前不会提交模型任务。</p>
             <details v-if="history" class="versions"><summary>修订与确认记录（{{ history.revisions.length }} 个版本）</summary>
               <p v-for="version in history.revisions" :key="version.number">v{{ version.number }} · {{ version.origin === 'TEMPLATE' ? '模板草稿' : version.origin === 'USER' ? '用户编辑稿' : '待人工补充' }} · {{ new Date(version.createdAt).toLocaleString() }}
@@ -76,7 +77,7 @@
               <p v-for="item in history.confirmations" :key="item.revision">v{{ item.revision }} 已于 {{ new Date(item.confirmedAt).toLocaleString() }} 确认</p>
               <p class="help">历史版本保持不变；载入旧版本后保存，会创建新的修订。</p></details>
           </fieldset>
-          <ShotGenerationPanel v-if="project" :user="user" :project="project" :dirty="dirty || busy || loading || !!draftConflict || project.archived" @apply-case="applyEvaluationCase" />
+          <ShotGenerationPanel v-if="project" :user="user" :project="project" :dirty="planningActive || dirty || busy || loading || !!draftConflict || project.archived" @apply-case="applyEvaluationCase" />
         </fieldset>
       </div>
     </template>
@@ -102,6 +103,7 @@ const { projects, project, draft, history, error, notice, busy, loading, dirty, 
   useStoryboardWorkspace({ user: toRef(props, 'user'), request, captureSession: captureAuthSession, storage: browserStorage('sessionStorage'), draftStorage: browserStorage('localStorage') })
 const brief = ref({ title: '', productName: '', goal: '', style: '自然光，简洁产品展示', desiredDurationSeconds: 15, shotCount: 3, frameRatio: '9:16', referenceAssetId: null })
 const sellingPoints = ref(''), uploading = ref(false), uploadedAssets = ref([])
+const planningActive = ref(false)
 const libraryBusy = ref(false), cachedDraftAssetIds = ref([]), draftProtectionError = ref('')
 let uploadEpoch = 0
 const assetIds = computed(() => Array.from(new Set([...uploadedAssets.value, brief.value.referenceAssetId, project.value?.brief.referenceAssetId,

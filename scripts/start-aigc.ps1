@@ -98,6 +98,11 @@ if ($Seedance) {
         if ($taskLine -match '^(SEEDANCE_API_KEY|SEEDANCE_BASE_URL|SEEDANCE_ARTIFACT_HOSTS)=(.*)$') { $taskEnvironment[$Matches[1]]=$Matches[2].Trim() }
     }
     if (-not $taskEnvironment['SEEDANCE_API_KEY'] -or $taskEnvironment['SEEDANCE_BASE_URL'].TrimEnd('/') -ne 'https://ark.cn-beijing.volces.com/api/v3') { throw 'Seedance requires a local Ark key and the official Beijing API endpoint.' }
+    $taskArtifactHosts = $taskEnvironment['SEEDANCE_ARTIFACT_HOSTS']
+    if (-not $taskArtifactHosts) { throw 'Seedance requires exact artifact download host names.' }
+    foreach ($taskArtifactHost in $taskArtifactHosts.Split(',')) {
+        if ($taskArtifactHost.Trim().Length -gt 253 -or $taskArtifactHost.Trim() -notmatch '^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$') { throw 'Seedance artifact hosts must be exact DNS names without wildcards, URLs or ports.' }
+    }
     $taskEnvironment['GENERATION_PROVIDER']='seedance'
     $taskEnvironment['GENERATION_TEXT_MODEL']='doubao-seedance-2-0-mini-260615'
     $taskEnvironment['GENERATION_IMAGE_MODEL']='doubao-seedance-2-0-mini-260615'

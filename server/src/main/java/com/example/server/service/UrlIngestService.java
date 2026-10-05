@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
 
 /**
  * 链接视频入库：yt-dlp 拉取可能长达 30 分钟，不能占住 HTTP 线程。
- * 提交时只做链接校验并登记任务，下载在独立线程池中执行，状态存 Redis 供前端轮询。
+ * 提交时登记数据库任务，下载在独立线程池执行；Redis 只作兼容缓存。
  */
 @Service
 public class UrlIngestService {
@@ -55,6 +55,7 @@ public class UrlIngestService {
     private final MediaService mediaService;
     private final StringRedisTemplate redis;
     private final ObjectMapper json;
+    private final UrlIngestJobRepository jobs;
     private final Executor executor;
     private final Clock clock;
     /** 单实例内的并发计数；进程重启后自然清零，不会像 Redis 计数那样因崩溃泄漏名额。 */
@@ -65,20 +66,23 @@ public class UrlIngestService {
                             MediaService mediaService,
                             StringRedisTemplate redis,
                             ObjectMapper json,
+                            UrlIngestJobRepository jobs,
                             @Qualifier("urlIngestExecutor") Executor executor) {
-        this(ingest, mediaService, redis, json, executor, Clock.systemUTC());
+        this(ingest, mediaService, redis, json, jobs, executor, Clock.systemUTC());
     }
 
     UrlIngestService(MediaIngestService ingest,
                      MediaService mediaService,
                      StringRedisTemplate redis,
                      ObjectMapper json,
+                     UrlIngestJobRepository jobs,
                      Executor executor,
                      Clock clock) {
         this.ingest = ingest;
         this.mediaService = mediaService;
         this.redis = redis;
         this.json = json;
+        this.jobs = jobs;
         this.executor = executor;
         this.clock = clock;
     }
@@ -94,7 +98,8 @@ public class UrlIngestService {
         long now = clock.millis();
         Job job = new Job(UUID.randomUUID().toString(), userId, Status.QUEUED, null, null, now, now);
         try {
-            save(job);
+            jobs.create(job);
+            cache(job);
             executor.execute(() -> run(job, normalizedUrl));
         } catch (RejectedExecutionException e) {
             release(userId);
@@ -108,24 +113,40 @@ public class UrlIngestService {
     }
 
     public JobView status(String jobId, Long userId) {
-        String raw = jobId == null || !JOB_ID.matcher(jobId).matches() ? null : redis.opsForValue().get(JOB_PREFIX + jobId);
-        Job job = raw == null ? null : read(raw);
-        if (job == null || !job.userId().equals(userId)) {
+        boolean legacy = false;
+        Job job = jobId == null || !JOB_ID.matcher(jobId).matches() ? null : jobs.find(jobId);
+        if (job == null && jobId != null && JOB_ID.matcher(jobId).matches()) {
+            // Pre-V12 tasks are retained until their existing Redis TTL expires.
+            try { String raw = redis.opsForValue().get(JOB_PREFIX + jobId); job = raw == null ? null : read(raw); legacy = job != null; }
+            catch (RuntimeException unavailable) { log.warn("legacy_url_ingest_cache_unavailable"); }
+        }
+        if (job == null || !job.userId().equals(userId) || (!legacy && clock.millis() - job.createdAt() > JOB_TTL.toMillis())) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "链接下载任务不存在或已过期");
+        }
+        if (job.status() != Status.COMPLETED) {
+            MediaFile committed = mediaService.completedIngest("url:" + job.id(), userId);
+            if (committed != null) {
+                job = next(job, Status.COMPLETED, committed.getId(), null);
+                try { save(job); } catch (RuntimeException unavailable) { log.warn("url_ingest_completion_repair_deferred job={}", job.id()); }
+            }
         }
         return view(job);
     }
 
     private void run(Job job, String url) {
         try {
-            save(next(job, Status.RUNNING, null, null));
-            MediaFile media = ingest.ingestUrl(url, job.userId());
+            Job running = next(job, Status.RUNNING, null, null);
+            if (!jobs.start(running)) return;
+            cache(running);
+            MediaFile media = ingest.ingestUrl(url, job.userId(), "url:" + job.id());
             save(next(job, Status.COMPLETED, media.getId(), null));
         } catch (Exception e) {
             if (e instanceof InterruptedException) Thread.currentThread().interrupt();
             log.warn("url_ingest_failed job={}", job.id(), e);
             try {
-                save(next(job, Status.FAILED, null, userMessage(e)));
+                MediaFile committed = mediaService.completedIngest("url:" + job.id(), job.userId());
+                save(committed == null ? next(job, Status.FAILED, null, userMessage(e))
+                        : next(job, Status.COMPLETED, committed.getId(), null));
             } catch (RuntimeException saveError) {
                 log.warn("url_ingest_state_save_failed job={} type={}", job.id(), saveError.getClass().getSimpleName());
             }
@@ -175,10 +196,15 @@ public class UrlIngestService {
     }
 
     private void save(Job job) {
+        jobs.update(job);
+        cache(job);
+    }
+
+    private void cache(Job job) {
         try {
             redis.opsForValue().set(JOB_PREFIX + job.id(), json.writeValueAsString(job), JOB_TTL);
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("无法保存链接下载任务", e);
+        } catch (Exception e) {
+            log.warn("url_ingest_cache_write_failed job={} type={}", job.id(), e.getClass().getSimpleName());
         }
     }
 

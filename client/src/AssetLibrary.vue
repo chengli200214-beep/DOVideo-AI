@@ -32,7 +32,7 @@ const active = ref(false), account = computed(() => active.value ? props.user : 
 const request = storyboardApi(apiRequest)
 const { items, nextCursor, loading, error, load, clear } = useCursorLibrary({ user: account, query, path: '/generation/assets', request, captureSession: captureAuthSession })
 const jobs = ref([]), preview = ref(null)
-const cleanupStates = { PENDING: '等待清理', DELETING: '清理中', FAILED: '清理失败' }
+const cleanupStates = { UPLOADING: '等待上传完成', PENDING: '等待清理', DELETING: '清理中', FAILED: '清理失败' }
 let reads = 0
 const { busy, error: operationError, run: operation } = useLibraryAction({ user: toRef(props, 'user'), captureSession: captureAuthSession,
   onInvalidate: reason => { reads++; jobs.value = []; preview.value = null; if (reason === 'session') clear() } })

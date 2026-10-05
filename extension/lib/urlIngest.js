@@ -30,12 +30,15 @@ export async function waitForUrlIngest(jobId, { request, isCurrent = () => true,
     if (!isCurrent()) return null
     try {
       const res = await request(`/media/upload-url/${encodeURIComponent(jobId)}`)
+      if (!isCurrent()) return null
       if (!res.ok) {
         const error = new Error(isFatalStatus(res.status) ? await res.text() : '后端服务暂时不可用')
         error.fatal = isFatalStatus(res.status)
+        error.status = res.status
         throw error
       }
       const job = await res.json()
+      if (!isCurrent()) return null
       if (!KNOWN_STATUSES.includes(job?.status)) throw new Error('后端返回了无法识别的任务状态')
       failingSince = null
       onStatus?.(job.status)
@@ -45,6 +48,7 @@ export async function waitForUrlIngest(jobId, { request, isCurrent = () => true,
       }
       if (job.status === 'FAILED') throw Object.assign(new Error(job.error || '链接下载失败'), { fatal: true })
     } catch (error) {
+      if (!isCurrent()) return null
       failingSince ??= now()
       if (error.fatal || now() - failingSince > MAX_FAILURE_MS) throw error
     }

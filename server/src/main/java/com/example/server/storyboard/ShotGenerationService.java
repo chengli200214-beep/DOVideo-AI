@@ -83,6 +83,7 @@ public class ShotGenerationService {
                         return new Submitted((String) existing.getFirst().get("id"), true,
                                 versions(user, projectId, (String) existing.getFirst().get("id")), budget(projectId));
                     }
+                    StoryboardRepository.requireNoActivePlanning(jdbc, projectId);
                     requireConfirmed(project, input.revision());
                     var draft = json.readValue(storyboards.revision(projectId, input.revision()).json(), StoryboardDraft.class);
                     var shots = draft.shots().stream().filter(shot -> ids.contains(shot.id())).toList();

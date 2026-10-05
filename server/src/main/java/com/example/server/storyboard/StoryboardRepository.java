@@ -82,6 +82,8 @@ public class StoryboardRepository {
     }
     public boolean confirm(String id, long user, int expected, long now) {
         return transaction.execute(tx -> {
+            if (jdbc.queryForList("SELECT id FROM creative_projects WHERE id=? AND user_id=? FOR UPDATE", id, user).isEmpty()) return false;
+            requireNoActivePlanning(jdbc, id);
             int changed = jdbc.update("""
                 UPDATE creative_projects SET status='CONFIRMED',confirmed_revision=?,updated_at=?
                 WHERE id=? AND user_id=? AND latest_revision=? AND archived_at IS NULL
@@ -90,6 +92,10 @@ public class StoryboardRepository {
             jdbc.update("INSERT IGNORE INTO storyboard_confirmations VALUES (?,?,?)", id, expected, now);
             return true;
         });
+    }
+    public static void requireNoActivePlanning(JdbcTemplate jdbc, String id) {
+        if (jdbc.queryForObject("SELECT COUNT(*) FROM storyboard_model_tasks WHERE project_id=? AND status IN ('QUEUED','SUBMITTING')", Integer.class, id) > 0)
+            throw new BusinessException(ErrorCode.CONFLICT, "分镜模型仍在生成，请等待结果后再确认或提交镜头");
     }
     public void archive(long user, String id, boolean archived, long now) {
         transaction.executeWithoutResult(tx -> {

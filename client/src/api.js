@@ -1,12 +1,26 @@
 const API_BASE = (import.meta.env?.VITE_API_BASE_URL || '').replace(/\/$/, '')
 const TOKEN_KEY = 'authToken'
 let sessionRevision = 0
+let boundSession
+
+/** Bind requests to the account currently displayed by the application. */
+export function bindAuthSession() {
+  boundSession = { token: localStorage.getItem(TOKEN_KEY), user: localStorage.getItem('user') }
+  sessionRevision += 1
+}
+function matchesBoundSession() {
+  return !boundSession || (boundSession.token === localStorage.getItem(TOKEN_KEY) && boundSession.user === localStorage.getItem('user'))
+}
 
 /** Capture both local login changes and tokens changed by another tab. */
 export function captureAuthSession() {
+  if (!matchesBoundSession()) {
+    window.dispatchEvent(new Event('auth-changed'))
+    return () => false
+  }
   const token = localStorage.getItem(TOKEN_KEY)
   const revision = sessionRevision
-  return () => revision === sessionRevision && token === localStorage.getItem(TOKEN_KEY)
+  return () => revision === sessionRevision && token === localStorage.getItem(TOKEN_KEY) && matchesBoundSession()
 }
 
 export function hasAuthToken() {
@@ -16,12 +30,12 @@ export function hasAuthToken() {
 export function setAuthToken(token) {
   if (!token) throw new Error('登录接口未返回有效令牌')
   localStorage.setItem(TOKEN_KEY, token)
-  sessionRevision += 1
+  bindAuthSession()
 }
 
 export function clearAuthToken() {
   localStorage.removeItem(TOKEN_KEY)
-  sessionRevision += 1
+  bindAuthSession()
 }
 
 /**
@@ -71,6 +85,10 @@ function unwrap(response, envelope) {
 }
 
 export async function apiRequest(path, options = {}) {
+  if (!matchesBoundSession()) {
+    window.dispatchEvent(new Event('auth-changed'))
+    throw new Error('登录账号已在其他页面变化，请检查当前账号后重试')
+  }
   const headers = new Headers(options.headers || {})
   const token = localStorage.getItem(TOKEN_KEY)
   const isCurrentSession = captureAuthSession()

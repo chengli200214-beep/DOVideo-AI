@@ -3,6 +3,7 @@ import { normalizeHttpUrl, isSameVideo, parseVideoUrl, withTimestamp } from './l
 import { consumeTaskStream } from './lib/sseParser.js'
 import { renderResult } from './lib/markdownView.js'
 import { ANALYSIS_STAGES, analysisStageLabelOf, analysisStageOf } from './lib/stageProgress.js'
+import { waitForUrlIngest } from './lib/urlIngest.js'
 
 const TOKEN_KEY = 'authToken'
 const DEFAULT_GOAL = '理解视频核心内容，提炼关键结论，并给出带时间戳的证据和可执行建议'
@@ -368,11 +369,19 @@ async function submitAnalysis() {
   resetRunningView()
   setTopStatus('处理中…')
   els.statusMessage.textContent = '正在登记视频链接…'
+  els.backBtn.hidden = false
   try {
     const form = new FormData()
     form.append('url', url)
-    const media = await requestJson('/media/upload-url', { method: 'POST', body: form })
+    const job = await requestJson('/media/upload-url', { method: 'POST', body: form })
     if (version !== operationVersion) return
+    if (!job?.id) throw new Error('后端未返回链接下载任务 ID')
+    const media = await waitForUrlIngest(job.id, {
+      request: apiRequest,
+      isCurrent: () => version === operationVersion,
+      onStatus: status => { els.statusMessage.textContent = status === 'QUEUED' ? '链接下载排队中…' : '正在下载视频并保存…' }
+    })
+    if (version !== operationVersion || !media) return
     const mediaId = media?.id
     if (!mediaId) throw new Error('后端未返回视频 ID，无法提交分析')
 

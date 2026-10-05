@@ -47,6 +47,15 @@ public class SeedanceGenerationProvider implements GenerationProvider {
         if (config.getApiKey() == null || config.getApiKey().isBlank()
                 || config.getBaseUrl() == null || !BASE_URL.equals(config.getBaseUrl().replaceAll("/+$", "")))
             throw new BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "Seedance 需配置方舟密钥和官方北京 API 地址");
+        requireArtifactHosts(config.getArtifactHosts());
+    }
+    public static void requireArtifactHosts(String value) {
+        if (value == null || value.isBlank()) throw new BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "Seedance 需配置精确的产物下载域名");
+        for (String item : value.split(",", -1)) {
+            String host = item.trim().toLowerCase(Locale.ROOT);
+            if (host.length() > 253 || !host.matches("(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?"))
+                throw new BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "Seedance 产物域名需为精确域名，不可包含通配符、地址或路径");
+        }
     }
     public void validateRequest(String model, GenerationRequest request) {
         parameters(model, request, true);

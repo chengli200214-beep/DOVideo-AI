@@ -37,14 +37,21 @@ public class MediaIngestService {
     }
 
     public MediaFile ingestUrl(String url, Long userId) throws Exception {
+        return ingestUrl(url, userId, null);
+    }
+    public MediaFile ingestUrl(String url, Long userId, String ingestKey) throws Exception {
         if (url == null || url.isBlank()) throw new IllegalArgumentException("视频链接不能为空");
+        if (ingestKey != null) {
+            MediaFile completed = mediaService.completedIngest(ingestKey, userId);
+            if (completed != null) return completed;
+        }
 
         File tempFile = null;
         try {
             tempFile = ytDlpUtils.downloadVideo(url);
             String md5 = mediaService.calculateMd5(tempFile);
             String fileUrl = minioUtils.uploadLocalFile(tempFile);
-            return mediaService.saveUploadedMedia("WEB_" + tempFile.getName(), fileUrl, userId, md5);
+            return mediaService.saveUploadedMediaOnce("WEB_" + tempFile.getName(), fileUrl, userId, md5, ingestKey);
         } finally {
             // 这份文件只是搬运工，进了 MinIO 就别继续占着本地磁盘了。
             if (tempFile != null && tempFile.exists() && !tempFile.delete()) {

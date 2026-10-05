@@ -76,13 +76,22 @@ public class GenerationAssetLifecycleService {
     @Scheduled(fixedDelayString="${generation.asset-cleanup-delay-ms:30000}",initialDelayString="${generation.asset-cleanup-initial-delay-ms:30000}")
     public void cleanupDue() {
         long now=System.currentTimeMillis();
-        var ids=jdbc.queryForList("SELECT id FROM generation_asset_cleanup WHERE state IN ('PENDING','DELETING') AND next_run_at<=? ORDER BY next_run_at,id LIMIT 10",String.class,now);
+        var ids=jdbc.queryForList("SELECT id FROM generation_asset_cleanup WHERE state IN ('UPLOADING','PENDING','DELETING') AND next_run_at<=? ORDER BY next_run_at,id LIMIT 10",String.class,now);
         for(String id:ids) {
             long claimedAt=System.currentTimeMillis(); String lease=UUID.randomUUID().toString();
-            if(jdbc.update("UPDATE generation_asset_cleanup SET state='DELETING',attempts=attempts+1,lease_token=?,next_run_at=? WHERE id=? AND state IN ('PENDING','DELETING') AND next_run_at<=?",lease,claimedAt+300_000,id,claimedAt)!=1) continue;
-            var rows=jdbc.queryForList("SELECT object_key,attempts FROM generation_asset_cleanup WHERE id=? AND lease_token=?",id,lease);
-            if(rows.isEmpty()) continue;
-            var row=rows.getFirst();
+            var row=tx.execute(transaction -> {
+                var rows=jdbc.queryForList("SELECT object_key,state,next_run_at FROM generation_asset_cleanup WHERE id=? FOR UPDATE",id);
+                if(rows.isEmpty()) return null;
+                var intent=rows.getFirst();
+                if(!Set.of("UPLOADING","PENDING","DELETING").contains(intent.get("state")) || ((Number)intent.get("next_run_at")).longValue()>claimedAt) return null;
+                if(jdbc.queryForObject("SELECT COUNT(*) FROM generation_assets WHERE object_key=?",Integer.class,intent.get("object_key"))>0) {
+                    jdbc.update("DELETE FROM generation_asset_cleanup WHERE id=?",id);
+                    return null;
+                }
+                jdbc.update("UPDATE generation_asset_cleanup SET state='DELETING',attempts=attempts+1,lease_token=?,next_run_at=? WHERE id=?",lease,claimedAt+300_000,id);
+                return jdbc.queryForMap("SELECT object_key,attempts FROM generation_asset_cleanup WHERE id=?",id);
+            });
+            if(row==null) continue;
             int attempt=((Number)row.get("attempts")).intValue();
             try {
                 store.removeReference((String)row.get("object_key"));

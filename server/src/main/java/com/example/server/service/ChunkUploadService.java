@@ -146,15 +146,18 @@ public class ChunkUploadService {
                 }
 
                 String fileUrl = minioUtils.uploadLocalFile(mergedFile.toFile(), filename);
-                MediaFile mediaFile = mediaService.saveUploadedMedia(
-                        filename, fileUrl, userId, HexFormat.of().formatHex(digest.digest()));
-                // 先记成功再清现场。清理失败或客户端重试，都不会再插一条媒体记录。
-                // The receipt must outlive the resumable metadata, including the
-                // small time gap between these Redis calls near expiry.
-                redisTemplate.opsForValue().set(
-                        completedKey(uploadId), String.valueOf(mediaFile.getId()), 25, TimeUnit.HOURS);
-                redisTemplate.expire(uploadKey(uploadId), 1, TimeUnit.DAYS);
-                redisTemplate.expire(partsKey(uploadId), 1, TimeUnit.DAYS);
+                MediaFile mediaFile = mediaService.saveUploadedMediaOnce(
+                        filename, fileUrl, userId, HexFormat.of().formatHex(digest.digest()), "chunk:" + uploadId);
+                // The unique database ingest key is the receipt. Retain this cache
+                // longer than resumable metadata for compatibility with old uploads.
+                try {
+                    redisTemplate.opsForValue().set(
+                            completedKey(uploadId), String.valueOf(mediaFile.getId()), 25, TimeUnit.HOURS);
+                    redisTemplate.expire(uploadKey(uploadId), 1, TimeUnit.DAYS);
+                    redisTemplate.expire(partsKey(uploadId), 1, TimeUnit.DAYS);
+                } catch (RuntimeException unavailable) {
+                    log.warn("chunk_completion_cache_failed mediaId={}", mediaFile.getId(), unavailable);
+                }
                 cleanup(uploadId, totalChunks, mediaFile.getId());
                 return mediaFile;
             } finally {
@@ -166,6 +169,8 @@ public class ChunkUploadService {
     }
 
     private MediaFile completedUpload(String uploadId, Long userId) {
+        MediaFile durable = mediaService.completedIngest("chunk:" + uploadId, userId);
+        if (durable != null) return durable;
         String mediaId = redisTemplate.opsForValue().get(completedKey(uploadId));
         if (mediaId == null) return null;
         try {
